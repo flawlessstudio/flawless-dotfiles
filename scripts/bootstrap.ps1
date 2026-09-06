@@ -24,7 +24,7 @@ function Refresh-Path {
 
 function Resolve-Mise {
   $cmd = Get-Command mise -ErrorAction SilentlyContinue
-  if ($cmd) { return $cmd.Source }
+  if ($cmd) { return [string]$cmd.Source }
 
   $candidates = @(
     (Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\mise.exe"),
@@ -33,7 +33,7 @@ function Resolve-Mise {
   foreach ($candidate in $candidates) {
     if (Test-Path $candidate) {
       $env:Path = "$(Split-Path -Parent $candidate);$env:Path"
-      return $candidate
+      return [string]$candidate
     }
   }
   return $null
@@ -41,7 +41,7 @@ function Resolve-Mise {
 
 function Ensure-Mise {
   $existing = Resolve-Mise
-  if ($existing) { return $existing }
+  if ($existing) { return [string]$existing }
 
   if ($Plan) {
     Write-Warning "mise is not installed. Install it first, or rerun with -Apply."
@@ -50,11 +50,11 @@ function Ensure-Mise {
 
   if (Get-Command scoop -ErrorAction SilentlyContinue) {
     Write-Host "Installing mise with Scoop (recommended Windows package path)..."
-    & scoop install mise
+    & scoop install mise | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "scoop failed to install mise" }
   } elseif (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host "Installing mise with the official Windows package id jdx.mise..."
-    & winget install --id jdx.mise --exact --accept-source-agreements --accept-package-agreements
+    & winget install --id jdx.mise --exact --accept-source-agreements --accept-package-agreements | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "winget failed to install mise" }
   } else {
     throw "mise is missing and neither Scoop nor winget is available. Install mise, then rerun this command."
@@ -65,10 +65,10 @@ function Ensure-Mise {
   if (-not $installed) {
     throw "mise was installed but cannot be resolved in this PowerShell session. Open a new shell and rerun."
   }
-  return $installed
+  return [string]$installed
 }
 
-$MiseExe = Ensure-Mise
+$MiseExe = [string](Ensure-Mise)
 # Trust is process-scoped: plan/apply do not write persistent trust state.
 $env:MISE_TRUSTED_CONFIG_PATHS = $Root
 
