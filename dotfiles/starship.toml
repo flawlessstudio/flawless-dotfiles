@@ -1,0 +1,52 @@
+# Flawless Starship — Flawless Graphite palette
+format = """
+[╭─](fg:#566072)$os$directory$git_branch$git_status$nodejs$python$rust$bun$docker_context$cmd_duration$line_break
+[╰─](fg:#566072)$character"""
+
+[os]
+disabled = false
+style = "fg:#566072"
+
+[directory]
+style = "bold fg:#6CA9FF"
+truncation_length = 4
+format = "[ $path ]($style)"
+
+[git_branch]
+symbol = " "
+style = "bold fg:#5FBBC2"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "fg:#E26D77"
+format = '([$all_status$ahead_behind]($style) )'
+
+[nodejs]
+symbol = " "
+style = "fg:#98C379"
+format = "[$symbol$version]($style) "
+
+[python]
+symbol = " "
+style = "fg:#D8BE84"
+format = "[$symbol$version]($style) "
+
+[rust]
+symbol = " "
+style = "fg:#E26D77"
+format = "[$symbol$version]($style) "
+
+[bun]
+symbol = " "
+style = "fg:#D9AEFF"
+format = "[$symbol$version]($style) "
+
+[cmd_duration]
+min_time = 2000
+style = "fg:#566072"
+format = "[ $duration]($style)"
+
+[character]
+success_symbol = "[❯](bold fg:#98C379)"
+error_symbol = "[❯](bold fg:#E26D77)"
+vicmd_symbol = "[❮](bold fg:#D8BE84)"
