@@ -20,7 +20,7 @@ if command -v python >/dev/null 2>&1; then
 
   python - <<'PY'
 import tomllib
-for name in ("mise.toml", "mise.unix.toml", ".miserc.toml"):
+for name in ("mise.toml", "mise.unix.toml", "mise.windows.toml", ".miserc.toml"):
     with open(name, "rb") as f:
         tomllib.load(f)
     print(f"PASS  {name}")
