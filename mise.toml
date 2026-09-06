@@ -20,8 +20,8 @@ run = "mise bootstrap --dry-run"
 
 [tasks.doctor]
 description = "Run read-only Flawless environment diagnostics"
-run = "./scripts/doctor.sh"
+run = "bash ./scripts/doctor.sh"
 
 [tasks.validate]
 description = "Validate repository manifests and shell entrypoints"
-run = "./scripts/validate.sh"
+run = "bash ./scripts/validate.sh"
