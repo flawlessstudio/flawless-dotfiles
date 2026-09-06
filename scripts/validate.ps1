@@ -19,9 +19,9 @@ Write-Host "== PowerShell syntax validation =="
 }
 
 Write-Host ""
-Write-Host "== manifest validation =="
+Write-Host "== manifest and Python validation =="
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-  Write-Error "python is required for canonical JSON/TOML validation"
+  Write-Error "python is required for canonical JSON/TOML/Python validation"
 }
 
 Get-ChildItem manifests -Filter *.json | ForEach-Object {
@@ -29,6 +29,10 @@ Get-ChildItem manifests -Filter *.json | ForEach-Object {
   if ($LASTEXITCODE -ne 0) { throw "Invalid JSON: $($_.Name)" }
   Write-Host "PASS  manifests/$($_.Name)"
 }
+
+& python -m py_compile scripts/sync-sources.py
+if ($LASTEXITCODE -ne 0) { throw "Python compile validation failed" }
+Write-Host "PASS  scripts/sync-sources.py"
 
 $TomlCheck = @'
 import tomllib
