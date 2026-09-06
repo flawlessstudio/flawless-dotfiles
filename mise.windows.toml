@@ -1,8 +1,10 @@
-# Native Windows profile/task adapters. Loaded automatically by .miserc.toml.
+# Native Windows task adapters. Windows uses mise for tool versions and a
+# PowerShell-native projection engine for user configuration because mise's
+# managed home/system file bootstrap is Unix-only.
 
-[dotfiles]
-"~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1/flawless-mise" = { block = '(&mise activate pwsh) | Out-String | Invoke-Expression' }
-"~/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1/flawless-mise" = { block = '(&mise activate powershell) | Out-String | Invoke-Expression' }
+[tasks.plan]
+description = "Show Windows tool and configuration convergence without mutation"
+run = "mise install --dry-run; powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Plan"
 
 [tasks.doctor]
 description = "Run read-only Flawless environment diagnostics"
