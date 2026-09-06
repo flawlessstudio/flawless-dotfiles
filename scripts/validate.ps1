@@ -10,11 +10,12 @@ Write-Host "== PowerShell syntax validation =="
   "scripts/project-windows.ps1",
   "scripts/validate.ps1"
 ) | ForEach-Object {
+  $file = $_
   $tokens = $null
   $errors = $null
-  [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root $_), [ref]$tokens, [ref]$errors) | Out-Null
-  if ($errors.Count -gt 0) { throw "PowerShell parse failure in $_: $($errors[0].Message)" }
-  Write-Host "PASS  $_"
+  [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root $file), [ref]$tokens, [ref]$errors) | Out-Null
+  if ($errors.Count -gt 0) { throw ("PowerShell parse failure in {0}: {1}" -f $file, $errors[0].Message) }
+  Write-Host "PASS  $file"
 }
 
 Write-Host ""
