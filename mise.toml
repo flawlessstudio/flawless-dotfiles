@@ -1,6 +1,7 @@
 # Canonical cross-platform desired state for the Flawless developer environment.
-# Platform-specific additions live in mise.unix.toml / mise.linux.toml /
-# mise.macos.toml / mise.windows.toml and are selected by .miserc.toml.
+# Platform-specific projection is layered through mise.unix.toml and
+# mise.windows.toml. Native Windows intentionally does not use mise dotfiles,
+# because mise's managed home/system file bootstrap is Unix-only.
 
 redactions = ["*_API_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD", "HCLOUD_TOKEN"]
 
@@ -10,24 +11,14 @@ python = "3.13.15"
 uv = "0.12.10"
 "npm:pnpm" = "11.25.0"
 
-# Own files only inside ~/.config/flawless. Existing user configuration is
-# composed through a marker-delimited edit instead of being replaced.
-[dotfiles]
-"~/.config/flawless/gitconfig" = { source = "dotfiles/gitconfig", mode = "copy" }
-"~/.config/flawless/starship.toml" = { source = "dotfiles/starship.toml", mode = "copy" }
-"~/.gitconfig/flawless" = { block = """
-[include]
-  path = ~/.config/flawless/gitconfig
-""" }
-
 [tasks.plan]
-description = "Show the machine convergence plan without mutating the host"
-run = "mise bootstrap --dry-run"
+description = "Show the tool convergence plan without mutating the host"
+run = "mise install --dry-run"
 
 [tasks.doctor]
 description = "Run read-only Flawless environment diagnostics"
 run = "bash ./scripts/doctor.sh"
 
 [tasks.validate]
-description = "Validate repository manifests and shell entrypoints"
+description = "Validate repository manifests and entrypoints"
 run = "bash ./scripts/validate.sh"
