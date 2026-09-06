@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "base",
+      "purpose": "portable machine/user development substrate without duplicate AI runtimes",
+      "inherits": [],
+      "capabilities": ["github-cli"],
+      "platforms": ["linux", "macos", "windows", "wsl"],
+      "required": true
+    },
+    {
+      "id": "workstation-primary",
+      "purpose": "primary interactive coding workstation with independent coding lanes",
+      "inherits": ["base"],
+      "capabilities": ["codex", "claude-code"],
+      "platforms": ["linux", "macos", "windows", "wsl"],
+      "required": false
+    },
+    {
+      "id": "remote-vps",
+      "purpose": "persistent remote coding execution host with secure continuity",
+      "inherits": ["base"],
+      "capabilities": ["codex", "claude-code", "tailscale"],
+      "platforms": ["linux"],
+      "required": false
+    },
+    {
+      "id": "autonomous",
+      "purpose": "host capable of long-running autonomous Hermes workflows without forcing additional coding-agent duplication",
+      "inherits": ["base"],
+      "capabilities": ["hermes-agent"],
+      "platforms": ["linux", "macos-arm64", "windows", "wsl"],
+      "required": false
+    },
+    {
+      "id": "remote-vps-autonomous",
+      "purpose": "persistent VPS with both primary coding lanes and autonomous Hermes execution",
+      "inherits": ["remote-vps"],
+      "capabilities": ["hermes-agent"],
+      "platforms": ["linux"],
+      "required": false
+    },
+    {
+      "id": "google-lane",
+      "purpose": "Google-native agent lane for explicit comparison or Google-specific workflows",
+      "inherits": ["base"],
+      "capabilities": ["gemini-cli"],
+      "platforms": ["linux", "macos", "windows", "wsl"],
+      "required": false
+    },
+    {
+      "id": "provider-independent",
+      "purpose": "provider-independent coding contingency and interoperability lane",
+      "inherits": ["base"],
+      "capabilities": ["opencode"],
+      "platforms": ["linux", "macos", "windows", "wsl"],
+      "required": false
+    },
+    {
+      "id": "agentic-full",
+      "purpose": "full local/remote evaluation surface containing every currently governed CLI harness; intended for interoperability testing, not mandatory daily use",
+      "inherits": ["base"],
+      "capabilities": ["codex", "claude-code", "hermes-agent", "gemini-cli", "opencode"],
+      "platforms": ["linux", "macos-arm64", "windows", "wsl"],
+      "required": false
+    },
+    {
+      "id": "remote-client",
+      "purpose": "control-only device that reaches a persistent execution host without requiring local coding agents",
+      "inherits": [],
+      "capabilities": ["tailscale"],
+      "platforms": ["windows", "macos", "ios", "linux"],
+      "required": false
+    },
+    {
+      "id": "mobile-client",
+      "purpose": "mobile control surface; heavy agent execution remains remote",
+      "inherits": [],
+      "capabilities": [],
+      "platforms": ["ios"],
+      "required": false,
+      "external_requirements": ["ssh-client-or-provider-native-control-surface", "remote-host-access"]
+    }
+  ]
+}
