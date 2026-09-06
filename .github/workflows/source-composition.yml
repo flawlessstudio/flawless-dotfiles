@@ -33,11 +33,43 @@ jobs:
                 "role": "public CI fixture",
                 "lifecycle": "reference",
                 "private": false,
-                "required": true
+                "required": true,
+                "authority": "internal",
+                "trust_tier": "T0",
+                "license": null,
+                "update_policy": "frozen",
+                "last_verified": "2026-09-06"
               }
             ]
           }
           JSON
+
+      - name: Reject manifests with embedded credentials
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("$RUNNER_TEMP/sources-test.json")
+          d = json.loads(p.read_text())
+          d["sources"][0]["clone_url"] = "https://user:secret@github.com/example/repo.git"
+          pathlib.Path("$RUNNER_TEMP/sources-bad-credentials.json").write_text(json.dumps(d))
+          PY
+          if python scripts/sync-sources.py --plan --manifest "$RUNNER_TEMP/sources-bad-credentials.json" --base "$RUNNER_TEMP/bad"; then
+            echo "embedded credentials were unexpectedly accepted" >&2
+            exit 1
+          fi
+
+      - name: Reject unknown fields and unsafe destinations
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          base = json.loads(pathlib.Path("$RUNNER_TEMP/sources-test.json").read_text())
+          d1 = json.loads(json.dumps(base)); d1["sources"][0]["mystery"] = true if False else "unexpected"
+          pathlib.Path("$RUNNER_TEMP/sources-bad-field.json").write_text(json.dumps(d1))
+          d2 = json.loads(json.dumps(base)); d2["sources"][0]["destination"] = "../escape"
+          pathlib.Path("$RUNNER_TEMP/sources-bad-destination.json").write_text(json.dumps(d2))
+          PY
+          ! python scripts/sync-sources.py --plan --manifest "$RUNNER_TEMP/sources-bad-field.json" --base "$RUNNER_TEMP/bad"
+          ! python scripts/sync-sources.py --plan --manifest "$RUNNER_TEMP/sources-bad-destination.json" --base "$RUNNER_TEMP/bad"
 
       - name: Plan is read-only
         run: |
