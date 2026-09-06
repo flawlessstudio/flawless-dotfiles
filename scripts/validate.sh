@@ -17,8 +17,9 @@ if command -v python >/dev/null 2>&1; then
     python -m json.tool "$file" >/dev/null
     printf 'PASS  %s\n' "$file"
   done
-  python -m py_compile scripts/sync-sources.py
-  echo "PASS  scripts/sync-sources.py"
+  python -m py_compile scripts/sync-sources.py scripts/validate-registry.py
+  echo "PASS  Python scripts compile"
+  python scripts/validate-registry.py
 
   python - <<'PY'
 import tomllib
@@ -28,7 +29,8 @@ for name in ("mise.toml", "mise.unix.toml", "mise.windows.toml", ".miserc.toml")
     print(f"PASS  {name}")
 PY
 else
-  echo "WARN  python unavailable; JSON/TOML/Python parser checks skipped"
+  echo "FAIL  python unavailable; final registry validation cannot be skipped" >&2
+  exit 1
 fi
 
 echo
