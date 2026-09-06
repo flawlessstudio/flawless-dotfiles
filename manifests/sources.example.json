@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "example-governance",
+      "repository": "example-org/example-governance",
+      "clone_url": "https://github.com/example-org/example-governance.git",
+      "branch": "main",
+      "commit": "0000000000000000000000000000000000000000",
+      "destination": "governance",
+      "role": "canonical governance and environment architecture",
+      "lifecycle": "active",
+      "private": true,
+      "required": true
+    }
+  ]
+}
