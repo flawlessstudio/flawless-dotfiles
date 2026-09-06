@@ -1,0 +1,6 @@
+interface:
+  display_name: "Flawless Dotfiles"
+  short_description: "Repo-specific patterns and workflows for flawless-dotfiles"
+  default_prompt: "Use the flawless-dotfiles repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
