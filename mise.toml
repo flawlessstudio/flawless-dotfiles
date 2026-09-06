@@ -6,6 +6,9 @@
 [settings]
 lockfile = true
 
+[tool_config]
+locked = true
+
 redactions = ["*_API_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD", "HCLOUD_TOKEN"]
 
 [tools]
