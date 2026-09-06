@@ -1,0 +1,9 @@
+# Native Windows task adapters. Loaded automatically by .miserc.toml.
+
+[tasks.doctor]
+description = "Run read-only Flawless environment diagnostics"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1"
+
+[tasks.validate]
+description = "Validate repository manifests and declarative configuration"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate.ps1"
