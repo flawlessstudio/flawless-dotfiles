@@ -1,0 +1,55 @@
+$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+Set-Location $Root
+
+Write-Host "== manifest validation =="
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+  Write-Error "python is required for canonical JSON/TOML validation"
+}
+
+Get-ChildItem manifests -Filter *.json | ForEach-Object {
+  & python -m json.tool $_.FullName *> $null
+  if ($LASTEXITCODE -ne 0) { throw "Invalid JSON: $($_.Name)" }
+  Write-Host "PASS  manifests/$($_.Name)"
+}
+
+$TomlCheck = @'
+import tomllib
+for name in ("mise.toml", "mise.unix.toml", "mise.windows.toml", ".miserc.toml"):
+    with open(name, "rb") as f:
+        tomllib.load(f)
+    print(f"PASS  {name}")
+'@
+$TomlCheck | & python -
+if ($LASTEXITCODE -ne 0) { throw "TOML validation failed" }
+
+Write-Host ""
+Write-Host "== secret-safety validation =="
+$Tracked = @(& git ls-files)
+$Forbidden = @($Tracked | Where-Object {
+  $_ -match '(^|/)(\.env(\..*)?|id_(rsa|dsa|ecdsa|ed25519)|[^/]+\.(pem|key|p12|pfx|kdbx))$'
+})
+if ($Forbidden.Count -gt 0) {
+  throw ("Tracked credential-like files: " + ($Forbidden -join ", "))
+}
+Write-Host "PASS  no tracked credential-like filenames"
+
+$SecretFiles = @(& git grep -IlE '(sk-(proj-)?[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})' -- . 2>$null)
+if ($SecretFiles.Count -gt 0) {
+  throw ("Possible secret material in: " + ($SecretFiles -join ", "))
+}
+Write-Host "PASS  no common plaintext-secret signatures"
+
+Write-Host ""
+Write-Host "== mise validation =="
+if (Get-Command mise -ErrorAction SilentlyContinue) {
+  & mise config *> $null
+  if ($LASTEXITCODE -ne 0) { throw "mise config failed" }
+  Write-Host "PASS  mise config"
+
+  & mise bootstrap --dry-run *> $null
+  if ($LASTEXITCODE -ne 0) { throw "mise bootstrap --dry-run failed" }
+  Write-Host "PASS  mise bootstrap --dry-run"
+} else {
+  Write-Warning "mise unavailable; runtime plan validation skipped"
+}
