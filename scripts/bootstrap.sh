@@ -8,8 +8,8 @@ usage() {
   cat <<'EOF'
 Usage: scripts/bootstrap.sh [--plan|--apply]
 
-  --plan   Read-only preflight. Requires mise to be installed. (default)
-  --apply  Install mise if needed, trust this repository, converge desired state,
+  --plan   Read-only preflight. Reports missing mise/tool/config state. (default)
+  --apply  Bootstrap mise if needed, converge toolchain and managed config,
            then run the read-only doctor.
 EOF
 }
@@ -23,41 +23,35 @@ for arg in "$@"; do
   esac
 done
 
-have() { command -v "$1" >/dev/null 2>&1; }
-
-install_mise() {
-  if have mise; then
-    return 0
-  fi
-  if [[ "$MODE" != "apply" ]]; then
-    echo "PLAN: mise is not installed." >&2
-    echo "Run with --apply to install mise using its official bootstrap endpoint." >&2
-    return 3
-  fi
-  have curl || { echo "curl is required to bootstrap mise" >&2; return 4; }
-  echo "Installing mise from https://mise.run ..."
-  curl -fsSL https://mise.run | sh
-  export PATH="$HOME/.local/bin:$PATH"
-  have mise || { echo "mise installation completed but the binary is not on PATH" >&2; return 5; }
-}
-
 cd "$ROOT"
 
 if [[ "$MODE" == "plan" ]]; then
-  have mise || { install_mise; exit $?; }
-  echo "== Flawless environment plan =="
-  mise bootstrap --dry-run
+  echo "== Flawless Unix environment plan =="
+  if bash "$ROOT/scripts/ensure-mise.sh" --plan; then
+    bash "$ROOT/scripts/install-tools.sh" --plan
+    mise bootstrap dotfiles --dry-run
+  else
+    status=$?
+    [[ "$status" -eq 3 ]] || exit "$status"
+  fi
   echo
   bash "$ROOT/scripts/doctor.sh" --allow-missing
   exit 0
 fi
 
-install_mise
-echo "Trusting repository-local mise configuration..."
-mise trust "$ROOT/mise.toml"
-
-echo "== Applying Flawless desired state =="
-mise bootstrap --yes
+echo "== Phase 1/4: mise bootstrap =="
+bash "$ROOT/scripts/ensure-mise.sh" --apply
+export PATH="$HOME/.local/bin:$PATH"
 
 echo
+echo "== Phase 2/4: toolchain convergence =="
+bash "$ROOT/scripts/install-tools.sh" --apply
+
+echo
+echo "== Phase 3/4: Unix configuration projection =="
+export MISE_TRUSTED_CONFIG_PATHS="$ROOT"
+mise bootstrap dotfiles --yes
+
+echo
+echo "== Phase 4/4: environment doctor =="
 bash "$ROOT/scripts/doctor.sh"
