@@ -1,0 +1,91 @@
+name: Validate external source composition
+
+on:
+  push:
+    branches:
+      - main
+      - feat/reproducible-agent-environment-v0.1
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  source-composition:
+    name: Pinned source sync, drift refusal and rollback
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create public fixture manifest
+        run: |
+          cat > "$RUNNER_TEMP/sources-test.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "sources": [
+              {
+                "id": "dotfiles-fixture",
+                "repository": "flawlessstudio/flawless-dotfiles",
+                "clone_url": "https://github.com/flawlessstudio/flawless-dotfiles.git",
+                "branch": "main",
+                "commit": "12ef2107a598520f47e13b1a4c283b851978ad9b",
+                "destination": "dotfiles-fixture",
+                "role": "public CI fixture",
+                "lifecycle": "reference",
+                "private": false,
+                "required": true
+              }
+            ]
+          }
+          JSON
+
+      - name: Plan is read-only
+        run: |
+          python scripts/sync-sources.py \
+            --plan \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          ! test -e "$RUNNER_TEMP/sources/dotfiles-fixture"
+
+      - name: Apply exact pin and verify status
+        run: |
+          python scripts/sync-sources.py \
+            --apply \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          python scripts/sync-sources.py \
+            --status \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          test "$(git -C "$RUNNER_TEMP/sources/dotfiles-fixture" rev-parse HEAD)" = "12ef2107a598520f47e13b1a4c283b851978ad9b"
+
+      - name: Reapply is idempotent
+        run: |
+          before="$(git -C "$RUNNER_TEMP/sources/dotfiles-fixture" rev-parse HEAD)"
+          python scripts/sync-sources.py \
+            --apply \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          after="$(git -C "$RUNNER_TEMP/sources/dotfiles-fixture" rev-parse HEAD)"
+          test "$before" = "$after"
+
+      - name: Dirty source blocks destructive rollback
+        run: |
+          touch "$RUNNER_TEMP/sources/dotfiles-fixture/local-unmanaged-file"
+          if python scripts/sync-sources.py \
+            --unapply --yes \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"; then
+            echo "unapply unexpectedly removed a dirty source" >&2
+            exit 1
+          fi
+          test -e "$RUNNER_TEMP/sources/dotfiles-fixture/local-unmanaged-file"
+          rm "$RUNNER_TEMP/sources/dotfiles-fixture/local-unmanaged-file"
+
+      - name: Clean exact-pin rollback is conservative
+        run: |
+          python scripts/sync-sources.py \
+            --unapply --yes \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          ! test -e "$RUNNER_TEMP/sources/dotfiles-fixture"
