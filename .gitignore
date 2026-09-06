@@ -3,6 +3,15 @@ mise.local.toml
 mise.*.local.toml
 .mise.local.toml
 .mise.*.local.toml
+mise.local.lock
+mise.*.local.lock
+
+# Private/local composition manifests
+manifests/*.local.json
+manifests/*-private.json
+composition.local.json
+sources.local.json
+inventory.local.json
 
 # Secrets and credentials
 .env
@@ -23,6 +32,11 @@ history/
 logs/
 cache/
 .runtime/
+
+# Generated diagnostics / drift reports
+reports/local/
+*.doctor.json
+*.drift.json
 
 # OS/editor noise
 .DS_Store
