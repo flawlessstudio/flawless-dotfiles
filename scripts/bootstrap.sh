@@ -29,7 +29,7 @@ if [[ "$MODE" == "plan" ]]; then
   echo "== Flawless Unix environment plan =="
   if bash "$ROOT/scripts/ensure-mise.sh" --plan; then
     bash "$ROOT/scripts/install-tools.sh" --plan
-    mise bootstrap dotfiles --dry-run
+    mise bootstrap dotfiles apply --dry-run
   else
     status=$?
     [[ "$status" -eq 3 ]] || exit "$status"
@@ -50,7 +50,7 @@ bash "$ROOT/scripts/install-tools.sh" --apply
 echo
 echo "== Phase 3/4: Unix configuration projection =="
 export MISE_TRUSTED_CONFIG_PATHS="$ROOT"
-mise bootstrap dotfiles --yes
+mise bootstrap dotfiles apply --yes
 
 echo
 echo "== Phase 4/4: environment doctor =="
