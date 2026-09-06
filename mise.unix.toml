@@ -1,5 +1,6 @@
 # Unix-only projections. Loaded automatically because .miserc.toml enables auto_env.
 
 [dotfiles]
-"~/.zshrc" = { source = "dotfiles/zshrc", mode = "copy" }
-"~/.tmux.conf" = { source = "dotfiles/tmux.conf", mode = "copy" }
+"~/.config/flawless/tmux.conf" = { source = "dotfiles/tmux.conf", mode = "copy" }
+"~/.zshrc/flawless" = { source = "dotfiles/zshrc", template = "tera" }
+"~/.tmux.conf/flawless" = { block = "source-file ~/.config/flawless/tmux.conf" }
