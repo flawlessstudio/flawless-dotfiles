@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "flawless-reproducible-agent-environment",
+  "repository_role": "machine-user-environment-composition-root",
+  "exposure": "public-non-secret",
+  "state_classes": [
+    "canonical",
+    "projected",
+    "machine-local",
+    "secret-reference",
+    "runtime"
+  ],
+  "managed_capabilities": [
+    "toolchain",
+    "dotfiles",
+    "platform-profiles",
+    "bootstrap",
+    "diagnostics"
+  ],
+  "external_domain_sources": [
+    {
+      "id": "agent-definitions",
+      "ownership": "external-domain-ssot",
+      "integration": "reference-or-projection"
+    },
+    {
+      "id": "agent-skills",
+      "ownership": "external-domain-ssot",
+      "integration": "reference-or-projection"
+    },
+    {
+      "id": "mcp-assets",
+      "ownership": "external-domain-ssot",
+      "integration": "reference-or-projection"
+    },
+    {
+      "id": "ai-governance-protocols",
+      "ownership": "external-domain-ssot",
+      "integration": "reference-only"
+    }
+  ],
+  "target_profiles": [
+    "common",
+    "linux",
+    "macos",
+    "windows",
+    "remote-vps"
+  ],
+  "control_surfaces": [
+    "desktop-terminal",
+    "remote-ssh",
+    "mobile-ssh-client"
+  ],
+  "target_harnesses": [
+    "codex",
+    "claude-code",
+    "hermes-agent"
+  ],
+  "security_invariants": [
+    "no-plaintext-secrets-in-git",
+    "no-runtime-session-state-in-git",
+    "preserve-unmanaged-neighbors",
+    "least-privilege",
+    "explicit-apply",
+    "reversible-owned-state"
+  ],
+  "mvp": {
+    "locked": true,
+    "features": [
+      "declarative-desired-state",
+      "selective-dotfile-projection",
+      "external-secret-references",
+      "agent-environment-adapter-contract",
+      "bootstrap-apply-doctor"
+    ]
+  }
+}
