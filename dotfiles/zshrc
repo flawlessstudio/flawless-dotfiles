@@ -1,0 +1,53 @@
+# Flawless zsh configuration
+# Managed by flawless-dotfiles. Keep credentials and machine-local overrides out.
+
+# mise is the canonical tool/runtime environment when available.
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
+
+# Optional Oh My Zsh compatibility. The environment remains usable without it.
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+  export ZSH="$HOME/.oh-my-zsh"
+  ZSH_THEME=""
+  plugins=(git fzf gh docker kubectl tmux)
+  source "$ZSH/oh-my-zsh.sh"
+fi
+
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
+
+alias ls='eza --icons --group-directories-first'
+alias ll='eza -la --icons --group-directories-first --git'
+alias lt='eza --tree --icons --level=2'
+alias g='git'
+alias gs='git status -sb'
+alias gd='git diff'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gl='git pull'
+alias glog='git log --oneline --decorate --graph --all'
+command -v nvim >/dev/null 2>&1 && alias vim='nvim' && alias vi='nvim'
+command -v lazygit >/dev/null 2>&1 && alias lg='lazygit'
+command -v kubectl >/dev/null 2>&1 && alias k='kubectl'
+
+if command -v fd >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+fi
+
+HISTSIZE=50000
+SAVEHIST=50000
+HISTFILE="$HOME/.zsh_history"
+setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY EXTENDED_HISTORY
+
+export EDITOR="${EDITOR:-nvim}"
+export VISUAL="${VISUAL:-$EDITOR}"
+
+# Machine-local, non-versioned extension point.
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
+# Preserve the existing mobile/SSH workflow without forcing tmux locally.
+if [[ -n "${SSH_CONNECTION:-}" ]] && command -v tmux >/dev/null 2>&1 && [[ -z "${TMUX:-}" ]]; then
+  tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+fi
