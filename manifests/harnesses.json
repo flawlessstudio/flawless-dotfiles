@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "harnesses": [
+    {
+      "id": "codex",
+      "authority": "OpenAI",
+      "verified_surfaces": {
+        "user_config": "~/.codex/config.toml",
+        "user_instructions": "$CODEX_HOME/AGENTS.md",
+        "project_instructions": "AGENTS.md"
+      },
+      "managed_by_mvp": false,
+      "adapter_policy": "merge-or-project-only; never replace the complete runtime directory",
+      "credential_policy": "use provider/runtime credential store; never copy auth state into Git"
+    },
+    {
+      "id": "claude-code",
+      "authority": "Anthropic",
+      "verified_surfaces": {
+        "project_instructions": "CLAUDE.md",
+        "user_skills": "~/.claude/skills/",
+        "project_skills": ".claude/skills/"
+      },
+      "managed_by_mvp": false,
+      "adapter_policy": "project selected assets only; hooks/plugins require separate trust review",
+      "credential_policy": "use provider/runtime credential store; never copy auth state into Git"
+    },
+    {
+      "id": "hermes-agent",
+      "authority": "Nous Research",
+      "verified_surfaces": {
+        "user_config": "~/.hermes/config.yaml",
+        "user_root": "~/.hermes/",
+        "skills": "~/.hermes/skills/"
+      },
+      "managed_by_mvp": false,
+      "adapter_policy": "preserve sessions, logs, memories and generated runtime state",
+      "credential_policy": "keep provider keys outside the public repository"
+    }
+  ]
+}
