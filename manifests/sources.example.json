@@ -11,7 +11,13 @@
       "role": "canonical governance and environment architecture",
       "lifecycle": "active",
       "private": true,
-      "required": true
+      "required": true,
+      "authority": "internal",
+      "trust_tier": "T0",
+      "license": null,
+      "update_policy": "manual-review",
+      "last_verified": null,
+      "notes": "Replace with a local/private manifest entry; do not publish private inventory here."
     }
   ]
 }
