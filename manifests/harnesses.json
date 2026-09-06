@@ -1,41 +1,81 @@
 {
-  "schema_version": 1,
-  "harnesses": [
+  "schema_version": 2,
+  "contracts": [
     {
       "id": "codex",
       "authority": "OpenAI",
-      "verified_surfaces": {
+      "binary": "codex",
+      "capability": "codex",
+      "surfaces": {
         "user_config": "~/.codex/config.toml",
         "user_instructions": "$CODEX_HOME/AGENTS.md",
         "project_instructions": "AGENTS.md"
       },
-      "managed_by_mvp": false,
-      "adapter_policy": "merge-or-project-only; never replace the complete runtime directory",
-      "credential_policy": "use provider/runtime credential store; never copy auth state into Git"
+      "adapter_policy": "merge-or-project-only; never replace the complete CODEX_HOME/runtime directory",
+      "credential_policy": "provider/runtime-owned; never version or project authentication state",
+      "runtime_policy": "sessions, caches, logs and generated state remain runtime-owned"
     },
     {
       "id": "claude-code",
       "authority": "Anthropic",
-      "verified_surfaces": {
+      "binary": "claude",
+      "capability": "claude-code",
+      "surfaces": {
         "project_instructions": "CLAUDE.md",
         "user_skills": "~/.claude/skills/",
         "project_skills": ".claude/skills/"
       },
-      "managed_by_mvp": false,
-      "adapter_policy": "project selected assets only; hooks/plugins require separate trust review",
-      "credential_policy": "use provider/runtime credential store; never copy auth state into Git"
+      "adapter_policy": "project selected instructions and compatible skills only; hooks/plugins require an independent trust decision",
+      "credential_policy": "provider/runtime-owned; never version or project authentication state",
+      "runtime_policy": "history, sessions, caches, local state and provider-managed files remain runtime-owned"
     },
     {
       "id": "hermes-agent",
       "authority": "Nous Research",
-      "verified_surfaces": {
-        "user_config": "~/.hermes/config.yaml",
-        "user_root": "~/.hermes/",
-        "skills": "~/.hermes/skills/"
+      "binary": "hermes",
+      "capability": "hermes-agent",
+      "surfaces": {
+        "home": "$HERMES_HOME (default ~/.hermes; native Windows uses vendor-managed local app data)",
+        "config": "$HERMES_HOME/config.yaml",
+        "skills": "$HERMES_HOME/skills/",
+        "workspace_instructions": "AGENTS.md"
       },
-      "managed_by_mvp": false,
-      "adapter_policy": "preserve sessions, logs, memories and generated runtime state",
-      "credential_policy": "keep provider keys outside the public repository"
+      "adapter_policy": "project config/skills/instructions selectively; never replace HERMES_HOME",
+      "credential_policy": "$HERMES_HOME/.env and auth.json are secret/runtime-owned and forbidden to version",
+      "runtime_policy": "state.db, sessions, logs, memory and generated runtime artifacts remain Hermes-owned"
+    },
+    {
+      "id": "gemini-cli",
+      "authority": "Google",
+      "binary": "gemini",
+      "capability": "gemini-cli",
+      "surfaces": {
+        "user_settings": "~/.gemini/settings.json",
+        "project_settings": ".gemini/settings.json",
+        "user_instructions": "~/.gemini/GEMINI.md",
+        "project_instructions": "GEMINI.md"
+      },
+      "adapter_policy": "merge settings and project selected instructions; do not replace ~/.gemini",
+      "credential_policy": "authentication and API credentials remain provider/runtime-owned; settings may contain secret references but not secret values",
+      "runtime_policy": "session/history/cache/runtime files remain Gemini-owned"
+    },
+    {
+      "id": "opencode",
+      "authority": "Anomaly",
+      "binary": "opencode",
+      "capability": "opencode",
+      "surfaces": {
+        "user_config": "~/.config/opencode/opencode.json",
+        "project_config": "opencode.json",
+        "user_instructions": "~/.config/opencode/AGENTS.md",
+        "project_instructions": "AGENTS.md",
+        "user_skills": "~/.config/opencode/skills/",
+        "project_skills": ".opencode/skills/",
+        "agent_compatible_skills": "~/.agents/skills/ and .agents/skills/"
+      },
+      "adapter_policy": "prefer additive config/skills sources and AGENTS.md compatibility; never replace the complete OpenCode config/runtime tree",
+      "credential_policy": "provider credentials remain external/runtime-owned",
+      "runtime_policy": "sessions, caches, logs and generated state remain OpenCode-owned"
     }
   ]
 }
