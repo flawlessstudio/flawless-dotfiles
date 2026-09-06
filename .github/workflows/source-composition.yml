@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - main
-      - feat/reproducible-agent-environment-v0.1
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
