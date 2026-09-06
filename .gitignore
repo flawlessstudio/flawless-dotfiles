@@ -1,0 +1,31 @@
+# Local mise/profile overrides
+mise.local.toml
+mise.*.local.toml
+.mise.local.toml
+.mise.*.local.toml
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+secrets/
+private/
+.local-private/
+*.pem
+*.key
+*.p12
+*.pfx
+*.kdbx
+
+# Agent/runtime state
+sessions/
+history/
+logs/
+cache/
+.runtime/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
