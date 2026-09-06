@@ -57,7 +57,7 @@ jobs:
         run: |
           export HOME="$RUNNER_TEMP/flawless-home"
           export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
-          mise bootstrap dotfiles --yes
+          mise bootstrap dotfiles apply --yes
           bash scripts/doctor.sh
           grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
           grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
@@ -118,16 +118,21 @@ jobs:
       - name: Bootstrap mise on Windows
         shell: powershell
         run: |
-          $env:HOME = $env:FLAWLESS_TEST_HOME
-          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-mise.ps1 -Apply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $candidates = @(
+            (Get-Command mise -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\mise.exe'),
+            (Join-Path $env:USERPROFILE 'scoop\shims\mise.exe')
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          $miseExe = $candidates | Select-Object -First 1
+          if (-not $miseExe) { throw 'mise installed but executable path could not be persisted for the next CI step.' }
+          Split-Path -Parent $miseExe | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Converge configured Windows toolchain
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
-          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-tools.ps1 -Apply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -135,7 +140,6 @@ jobs:
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
-          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Apply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Status
@@ -145,7 +149,6 @@ jobs:
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
-          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
@@ -164,7 +167,6 @@ jobs:
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
-          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 -Apply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $paths = @(
@@ -184,7 +186,6 @@ jobs:
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
-          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Unapply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
