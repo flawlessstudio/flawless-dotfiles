@@ -1,4 +1,8 @@
-# Native Windows task adapters. Loaded automatically by .miserc.toml.
+# Native Windows profile/task adapters. Loaded automatically by .miserc.toml.
+
+[dotfiles]
+"~/Documents/PowerShell/Microsoft.PowerShell_profile.ps1/flawless-mise" = { block = '(&mise activate pwsh) | Out-String | Invoke-Expression' }
+"~/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1/flawless-mise" = { block = '(&mise activate powershell) | Out-String | Invoke-Expression' }
 
 [tasks.doctor]
 description = "Run read-only Flawless environment diagnostics"
