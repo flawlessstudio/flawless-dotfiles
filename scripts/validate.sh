@@ -11,12 +11,14 @@ for script in scripts/*.sh; do
 done
 
 echo
-echo "== manifest validation =="
+echo "== manifest and Python validation =="
 if command -v python >/dev/null 2>&1; then
   for file in manifests/*.json; do
     python -m json.tool "$file" >/dev/null
     printf 'PASS  %s\n' "$file"
   done
+  python -m py_compile scripts/sync-sources.py
+  echo "PASS  scripts/sync-sources.py"
 
   python - <<'PY'
 import tomllib
@@ -26,7 +28,7 @@ for name in ("mise.toml", "mise.unix.toml", "mise.windows.toml", ".miserc.toml")
     print(f"PASS  {name}")
 PY
 else
-  echo "WARN  python unavailable; JSON/TOML parser checks skipped"
+  echo "WARN  python unavailable; JSON/TOML/Python parser checks skipped"
 fi
 
 echo
