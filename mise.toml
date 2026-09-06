@@ -10,9 +10,15 @@ python = "3.13.15"
 uv = "0.12.10"
 "npm:pnpm" = "11.25.0"
 
+# Own files only inside ~/.config/flawless. Existing user configuration is
+# composed through a marker-delimited edit instead of being replaced.
 [dotfiles]
-"~/.gitconfig" = { source = "dotfiles/gitconfig", mode = "copy" }
-"~/.config/starship.toml" = { source = "dotfiles/starship.toml", mode = "copy" }
+"~/.config/flawless/gitconfig" = { source = "dotfiles/gitconfig", mode = "copy" }
+"~/.config/flawless/starship.toml" = { source = "dotfiles/starship.toml", mode = "copy" }
+"~/.gitconfig/flawless" = { block = """
+[include]
+  path = ~/.config/flawless/gitconfig
+""" }
 
 [tasks.plan]
 description = "Show the machine convergence plan without mutating the host"
