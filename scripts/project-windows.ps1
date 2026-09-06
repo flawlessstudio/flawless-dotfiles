@@ -208,7 +208,10 @@ if ($Apply) {
 }
 
 if ($Unapply) {
-  foreach ($check in ($Checks | Select-Object -Reverse)) {
+  # Iterate in reverse application order using syntax compatible with Windows
+  # PowerShell 5.x as well as modern PowerShell.
+  for ($i = $Checks.Count - 1; $i -ge 0; $i--) {
+    $check = $Checks[$i]
     if ($check.Kind -eq "copy") { Remove-CopyConservatively $check.Source $check.Target }
     else { Remove-Block $check.Path $check.Id }
     Write-Host "UNAPPLY $($check.Name)"
