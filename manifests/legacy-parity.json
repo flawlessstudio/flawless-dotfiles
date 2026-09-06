@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source": "scripts/setup.sh",
+  "retirement_policy": "legacy bootstrap may be deprecated only when every retained/replaced capability has a validated successor and fresh-host recovery is proven",
+  "items": [
+    {"id":"system-prerequisites","legacy":"curl wget git compiler/build prerequisites CA certificates GnuPG","disposition":"retained","successor":"system bootstrap layer","scope":"platform-specific"},
+    {"id":"zsh","legacy":"zsh default interactive shell","disposition":"retained","successor":"Unix shell profile","scope":"unix"},
+    {"id":"oh-my-zsh","legacy":"Oh My Zsh framework","disposition":"profile-scoped","successor":"optional Unix enhanced-shell profile","scope":"unix"},
+    {"id":"zsh-plugins","legacy":"autosuggestions syntax highlighting completions history substring search you-should-use","disposition":"profile-scoped","successor":"optional Unix enhanced-shell profile","scope":"unix"},
+    {"id":"starship","legacy":"cross-shell prompt","disposition":"retained","successor":"managed Flawless Starship config plus tool provision","scope":"cross-platform"},
+    {"id":"tmux","legacy":"persistent terminal multiplexer","disposition":"retained","successor":"remote/unix profile with selective config projection","scope":"unix-remote"},
+    {"id":"tmux-plugins","legacy":"TPM sensible resurrect continuum yank vim-tmux-navigator","disposition":"profile-scoped","successor":"remote terminal profile","scope":"unix-remote"},
+    {"id":"neovim-lazyvim","legacy":"Neovim and LazyVim starter","disposition":"profile-scoped","successor":"interactive terminal editor profile; config must become owned source before legacy retirement","scope":"developer"},
+    {"id":"git-config","legacy":"overwrite ~/.gitconfig","disposition":"replaced","successor":"selective include block into Flawless-owned gitconfig","scope":"cross-platform"},
+    {"id":"git-delta","legacy":"delta pager/diff renderer","disposition":"retained","successor":"developer CLI profile","scope":"developer"},
+    {"id":"ssh-key-generation","legacy":"generate passwordless ed25519 private key when missing","disposition":"rejected-security","successor":"external/interactive identity provisioning; public configuration may be managed but private keys are never created silently or stored in Git","scope":"identity"},
+    {"id":"ssh-config","legacy":"write global SSH config","disposition":"replaced","successor":"selective include/managed fragment with machine-local host definitions","scope":"remote"},
+    {"id":"cli-navigation","legacy":"eza bat fd ripgrep fzf zoxide","disposition":"retained","successor":"developer CLI profile","scope":"developer"},
+    {"id":"cli-data","legacy":"jq yq","disposition":"retained","successor":"developer CLI profile","scope":"developer"},
+    {"id":"cli-git","legacy":"lazygit GitHub CLI","disposition":"retained","successor":"developer CLI/base control-plane profiles","scope":"developer"},
+    {"id":"cli-remote","legacy":"mosh rsync","disposition":"retained","successor":"remote client/host profile","scope":"remote"},
+    {"id":"cli-network","legacy":"httpie nmap","disposition":"profile-scoped","successor":"network diagnostics profile","scope":"diagnostics"},
+    {"id":"cli-observability","legacy":"dust procs bottom hyperfine tokei tree","disposition":"profile-scoped","successor":"local diagnostics/productivity profile","scope":"developer-diagnostics"},
+    {"id":"node","legacy":"fnm latest LTS","disposition":"replaced","successor":"mise exact Node 24.20.0","scope":"cross-platform"},
+    {"id":"python","legacy":"pyenv without pinned interpreter","disposition":"replaced","successor":"mise exact Python 3.13.15 plus uv 0.12.10","scope":"cross-platform"},
+    {"id":"rust","legacy":"rustup stable","disposition":"project-scoped","successor":"install only for projects/tools that declare Rust; not a universal host requirement","scope":"language-runtime"},
+    {"id":"bun","legacy":"vendor latest installer","disposition":"project-scoped","successor":"install only where a project/profile declares Bun","scope":"language-runtime"},
+    {"id":"zshrc","legacy":"overwrite ~/.zshrc","disposition":"replaced","successor":"selective Flawless marker block and machine-local extension point","scope":"unix"},
+    {"id":"tmux-config","legacy":"overwrite ~/.tmux.conf","disposition":"replaced","successor":"Flawless-owned config plus source/include marker","scope":"unix"},
+    {"id":"docker-kubectl-shell-hooks","legacy":"aliases/plugins referenced Docker and kubectl without provisioning them","disposition":"corrected","successor":"container/Kubernetes capabilities must be explicitly declared by a project or infrastructure profile before aliases/plugins are enabled","scope":"infra"}
+  ]
+}
