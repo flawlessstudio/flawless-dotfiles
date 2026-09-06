@@ -14,14 +14,22 @@ function Pass([string]$Message) { Write-Host "PASS  $Message"; $script:PassCount
 function Warn([string]$Message) { Write-Warning $Message; $script:WarnCount++ }
 function Fail([string]$Message) { Write-Host "FAIL  $Message" -ForegroundColor Red; $script:FailCount++ }
 
+function Test-MiseCommand([string]$Command) {
+  if (-not (Get-Command mise -ErrorAction SilentlyContinue)) { return $false }
+  & mise which $Command *> $null
+  return ($LASTEXITCODE -eq 0)
+}
+
 function Check-Required([string]$Command) {
   if (Get-Command $Command -ErrorAction SilentlyContinue) { Pass "command:$Command" }
+  elseif (Test-MiseCommand $Command) { Pass "managed:$Command available through mise (shell activation pending/current-shell not activated)" }
   elseif ($AllowMissing) { Warn "command:$Command missing" }
   else { Fail "command:$Command missing" }
 }
 
 function Check-Optional([string]$Command) {
   if (Get-Command $Command -ErrorAction SilentlyContinue) { Pass "optional:$Command available" }
+  elseif (Test-MiseCommand $Command) { Pass "optional:$Command available through mise" }
   else { Warn "optional:$Command not installed" }
 }
 
