@@ -15,7 +15,7 @@ jobs:
     name: Unix static and safety gates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate
         run: bash scripts/validate.sh
 
@@ -23,7 +23,70 @@ jobs:
     name: Windows static and safety gates
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate.ps1
+
+  disposable-linux-convergence:
+    name: Disposable Linux convergence proof
+    runs-on: ubuntu-latest
+    env:
+      HOME: ${{ runner.temp }}/flawless-home
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Seed unmanaged neighbor state
+        run: |
+          mkdir -p "$HOME/.config"
+          printf '# unmanaged git sentinel\n' > "$HOME/.gitconfig"
+          printf '# unmanaged zsh sentinel\n' > "$HOME/.zshrc"
+          printf '# unmanaged tmux sentinel\n' > "$HOME/.tmux.conf"
+
+      - name: Bootstrap mise in isolated HOME
+        run: |
+          curl -fsSL https://mise.run | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/mise" --version
+
+      - name: First convergence and doctor
+        run: |
+          mise trust --all
+          mise bootstrap --yes
+          mise exec -- bash scripts/doctor.sh
+          mise bootstrap status --missing
+          grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
+          grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
+          grep -F '# unmanaged tmux sentinel' "$HOME/.tmux.conf"
+          sha256sum \
+            "$HOME/.gitconfig" \
+            "$HOME/.zshrc" \
+            "$HOME/.tmux.conf" \
+            "$HOME/.config/flawless/gitconfig" \
+            "$HOME/.config/flawless/tmux.conf" \
+            "$HOME/.config/flawless/starship.toml" \
+            > "$RUNNER_TEMP/first.sha256"
+
+      - name: Second convergence is idempotent
+        run: |
+          mise bootstrap --yes
+          mise bootstrap status --missing
+          sha256sum \
+            "$HOME/.gitconfig" \
+            "$HOME/.zshrc" \
+            "$HOME/.tmux.conf" \
+            "$HOME/.config/flawless/gitconfig" \
+            "$HOME/.config/flawless/tmux.conf" \
+            "$HOME/.config/flawless/starship.toml" \
+            > "$RUNNER_TEMP/second.sha256"
+          diff -u "$RUNNER_TEMP/first.sha256" "$RUNNER_TEMP/second.sha256"
+
+      - name: Unapply preserves unmanaged neighbors
+        run: |
+          mise bootstrap dotfiles unapply --yes
+          grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
+          grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
+          grep -F '# unmanaged tmux sentinel' "$HOME/.tmux.conf"
+          ! test -e "$HOME/.config/flawless/gitconfig"
+          ! test -e "$HOME/.config/flawless/tmux.conf"
+          ! test -e "$HOME/.config/flawless/starship.toml"
