@@ -12,7 +12,7 @@ export MISE_TRUSTED_CONFIG_PATHS="$ROOT"
 
 if [[ "${1:-}" == "--dry-run" ]]; then
   bash "$ROOT/scripts/install-tools.sh" --plan
-  mise bootstrap dotfiles --dry-run
+  mise bootstrap dotfiles apply --dry-run
   exit 0
 fi
 
@@ -30,5 +30,5 @@ EOF
 fi
 
 bash "$ROOT/scripts/install-tools.sh" --apply
-mise bootstrap dotfiles --yes
+mise bootstrap dotfiles apply --yes
 bash "$ROOT/scripts/doctor.sh"
