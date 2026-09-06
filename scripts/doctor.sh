@@ -48,7 +48,7 @@ echo "== Flawless environment doctor =="
 echo "root: $ROOT"
 echo
 
-for cmd in git mise node python uv pnpm; do
+for cmd in git mise node python uv pnpm fnox; do
   check_required "$cmd"
 done
 
@@ -58,8 +58,8 @@ case "$(uname -s 2>/dev/null || true)" in
     ;;
 esac
 
-# Agent harnesses are intentionally optional in MVP v0.1. Their presence is
-# observed, not required, and their auth/session state is never inspected.
+# Harness executables are observed, not required by every host profile. Their
+# auth/session state is never inspected or copied by this repository.
 for cmd in codex claude hermes; do
   check_optional "$cmd"
 done
@@ -76,7 +76,6 @@ else
   pass "no tracked credential-like filenames"
 fi
 
-# Report filenames only; never print a discovered credential value.
 secret_files="$(
   git grep -IlE '(sk-(proj-)?[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})' -- . 2>/dev/null || true
 )"
@@ -90,6 +89,9 @@ for file in \
   manifests/environment.json \
   manifests/harnesses.json \
   manifests/secrets.example.json \
+  manifests/sources.example.json \
+  manifests/sources.schema.json \
+  fnox.toml \
   dotfiles/gitconfig \
   dotfiles/starship.toml; do
   [[ -f "$file" ]] && pass "source:$file" || fail "source:$file missing"
@@ -113,6 +115,16 @@ if command -v mise >/dev/null 2>&1; then
   fi
 else
   warn "mise state checks skipped"
+fi
+
+if command -v fnox >/dev/null 2>&1 || mise_has_command fnox; then
+  if mise exec -- fnox --non-interactive config-files >/dev/null 2>&1; then
+    pass "fnox configuration contract resolves without secret retrieval"
+  elif [[ "$ALLOW_MISSING" -eq 1 ]]; then
+    warn "fnox configuration contract not yet resolvable"
+  else
+    fail "fnox configuration contract does not resolve"
+  fi
 fi
 
 echo
