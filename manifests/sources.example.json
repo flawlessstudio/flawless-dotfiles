@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "example-governance",
+      "repository": "example-org/example-governance",
+      "clone_url": "https://github.com/example-org/example-governance.git",
+      "branch": "main",
+      "commit": "0000000000000000000000000000000000000000",
+      "destination": "governance",
+      "role": "canonical governance and environment architecture",
+      "lifecycle": "active",
+      "private": true,
+      "required": true,
+      "authority": "internal",
+      "trust_tier": "T0",
+      "license": null,
+      "update_policy": "manual-review",
+      "last_verified": null,
+      "notes": "Replace with a local/private manifest entry; do not publish private inventory here."
+    }
+  ]
+}

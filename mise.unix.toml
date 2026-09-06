@@ -1,0 +1,17 @@
+# Unix-only managed projections. mise's dotfile/bootstrap file management is
+# intentionally confined to Unix; Windows uses scripts/project-windows.ps1.
+
+[dotfiles]
+"~/.config/flawless/gitconfig" = { source = "dotfiles/gitconfig", mode = "copy" }
+"~/.config/flawless/starship.toml" = { source = "dotfiles/starship.toml", mode = "copy" }
+"~/.config/flawless/tmux.conf" = { source = "dotfiles/tmux.conf", mode = "copy" }
+"~/.gitconfig/flawless" = { block = """
+[include]
+  path = ~/.config/flawless/gitconfig
+""" }
+"~/.zshrc/flawless" = { source = "dotfiles/zshrc", template = "tera" }
+"~/.tmux.conf/flawless" = { block = "source-file ~/.config/flawless/tmux.conf" }
+
+[tasks.plan]
+description = "Show Unix tool and dotfile convergence without mutating the host"
+run = "mise bootstrap --dry-run"

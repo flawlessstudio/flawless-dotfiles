@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/flawlessstudio/flawless-dotfiles/blob/main/manifests/sources.schema.json",
+  "title": "Flawless external source composition manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sources"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "repository", "clone_url", "branch", "commit", "destination", "role", "required"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "repository": { "type": "string", "minLength": 3 },
+        "clone_url": { "type": "string", "pattern": "^(https://|ssh://|git@)" },
+        "branch": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "destination": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+        "role": { "type": "string", "minLength": 1 },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["active", "frozen", "reference", "deprecated", "archived"]
+        },
+        "private": { "type": "boolean" },
+        "required": { "type": "boolean" },
+        "authority": {
+          "type": "string",
+          "enum": ["internal", "official", "first-party", "trusted-upstream", "community-reviewed", "experimental"]
+        },
+        "trust_tier": {
+          "type": "string",
+          "enum": ["T0", "T1", "T2", "T3", "T4", "T5"]
+        },
+        "license": { "type": ["string", "null"] },
+        "update_policy": {
+          "type": "string",
+          "enum": ["frozen", "manual-review", "security-only", "scheduled-review"]
+        },
+        "last_verified": {
+          "type": ["string", "null"],
+          "pattern": "^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

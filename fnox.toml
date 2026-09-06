@@ -1,0 +1,19 @@
+#:schema https://fnox.jdx.dev/schema.json
+# Public, non-secret secret contract for the Flawless environment.
+#
+# IMPORTANT:
+# - no secret values or private provider locators belong in this file;
+# - machine/provider bindings belong in ignored fnox.local.toml or the global
+#   fnox config (~/.config/fnox/config.toml);
+# - env = "exec" prevents ambient shell injection by default. Launch only the
+#   process that needs a secret via `fnox exec -- <command>`.
+
+root = true
+env = "exec"
+if_missing = "warn"
+
+[secrets]
+OPENAI_API_KEY = { description = "Optional OpenAI API credential for explicit API workloads", if_missing = "ignore" }
+ANTHROPIC_API_KEY = { description = "Optional Anthropic API credential for explicit API workloads", if_missing = "ignore" }
+GEMINI_API_KEY = { description = "Optional Google Gemini API credential for explicit API workloads", if_missing = "ignore" }
+HCLOUD_TOKEN = { description = "Optional Hetzner Cloud API token for explicit infrastructure-control workloads", if_missing = "ignore" }

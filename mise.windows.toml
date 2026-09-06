@@ -1,0 +1,15 @@
+# Native Windows task adapters. Windows uses mise for tool versions and a
+# PowerShell-native projection engine for user configuration because mise's
+# managed home/system file bootstrap is Unix-only.
+
+[tasks.plan]
+description = "Show Windows tool and configuration convergence without mutation"
+run = "mise install --dry-run; powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Plan"
+
+[tasks.doctor]
+description = "Run read-only Flawless environment diagnostics"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1"
+
+[tasks.validate]
+description = "Validate repository manifests and declarative configuration"
+run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate.ps1"

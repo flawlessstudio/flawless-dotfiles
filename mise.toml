@@ -1,0 +1,30 @@
+# Canonical cross-platform desired state for the Flawless developer environment.
+# Platform-specific projection is layered through mise.unix.toml and
+# mise.windows.toml. Native Windows intentionally does not use mise dotfiles,
+# because its projection requires Windows-specific preservation semantics.
+
+[settings]
+# Read and require the committed lockfile for deterministic tool resolution.
+# `locked` lives in [settings] for compatibility with mise versions currently
+# distributed through both the Unix bootstrap and Windows Package Manager.
+lockfile = true
+locked = true
+
+[tools]
+node = "24.20.0"
+python = "3.13.15"
+uv = "0.12.10"
+fnox = "1.35.1"
+"npm:pnpm" = "11.25.0"
+
+[tasks.plan]
+description = "Show the tool convergence plan without mutating the host"
+run = "mise install --dry-run"
+
+[tasks.doctor]
+description = "Run read-only Flawless environment diagnostics"
+run = "bash ./scripts/doctor.sh"
+
+[tasks.validate]
+description = "Validate repository manifests and entrypoints"
+run = "bash ./scripts/validate.sh"

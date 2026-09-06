@@ -1,0 +1,50 @@
+# Local mise/profile overrides
+mise.local.toml
+mise.*.local.toml
+.mise.local.toml
+.mise.*.local.toml
+mise.local.lock
+mise.*.local.lock
+
+# Local fnox/provider bindings
+fnox.local.toml
+.fnox.local.toml
+fnox.*.local.toml
+
+# Private/local composition manifests
+manifests/*.local.json
+manifests/*-private.json
+composition.local.json
+sources.local.json
+inventory.local.json
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+secrets/
+private/
+.local-private/
+*.pem
+*.key
+*.p12
+*.pfx
+*.kdbx
+
+# Agent/runtime state
+sessions/
+history/
+logs/
+cache/
+.runtime/
+
+# Generated diagnostics / drift reports
+reports/local/
+*.doctor.json
+*.drift.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
