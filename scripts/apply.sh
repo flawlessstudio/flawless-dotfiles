@@ -8,9 +8,11 @@ command -v mise >/dev/null 2>&1 || {
   echo "mise is required. Run: bash scripts/bootstrap.sh --apply" >&2
   exit 3
 }
+export MISE_TRUSTED_CONFIG_PATHS="$ROOT"
 
 if [[ "${1:-}" == "--dry-run" ]]; then
-  mise bootstrap --dry-run
+  bash "$ROOT/scripts/install-tools.sh" --plan
+  mise bootstrap dotfiles --dry-run
   exit 0
 fi
 
@@ -27,5 +29,6 @@ EOF
   exit 2
 fi
 
-mise bootstrap --yes
+bash "$ROOT/scripts/install-tools.sh" --apply
+mise bootstrap dotfiles --yes
 bash "$ROOT/scripts/doctor.sh"
