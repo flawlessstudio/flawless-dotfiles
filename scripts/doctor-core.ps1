@@ -33,8 +33,6 @@ function Invoke-MiseQuiet([string[]]$Arguments) {
   if (-not $script:MiseExe) { return 127 }
   $previous = $ErrorActionPreference
   try {
-    # Windows PowerShell 5 may surface native stderr/progress as a terminating
-    # NativeCommandError. The native exit code is authoritative for probes.
     $ErrorActionPreference = "Continue"
     & $script:MiseExe @Arguments *> $null
     return [int]$LASTEXITCODE
@@ -72,7 +70,7 @@ function Check-Optional([string]$Command) {
   }
 }
 
-foreach ($cmd in @("git", "mise", "node", "python", "uv", "pnpm")) { Check-Required $cmd }
+foreach ($cmd in @("git", "mise", "node", "python", "uv", "pnpm", "fnox")) { Check-Required $cmd }
 foreach ($cmd in @("codex", "claude", "hermes")) { Check-Optional $cmd }
 
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -94,6 +92,7 @@ foreach ($file in @(
   "manifests/secrets.example.json",
   "manifests/sources.example.json",
   "manifests/sources.schema.json",
+  "fnox.toml",
   "dotfiles/gitconfig",
   "dotfiles/starship.toml",
   "scripts/project-windows.ps1"
@@ -112,6 +111,11 @@ if ($MiseExe) {
   elseif ($toolStateCode -eq 1 -and $AllowMissing) { Add-Result "mise:tools" "warn" "configured tool state incomplete" }
   elseif ($toolStateCode -eq 1) { Add-Result "mise:tools" "fail" "configured tool state incomplete" }
   else { Add-Result "mise:tools" "fail" "tool-state probe failed with exit $toolStateCode" }
+
+  $fnoxConfigCode = Invoke-MiseQuiet @("exec", "--", "fnox", "--non-interactive", "config-files")
+  if ($fnoxConfigCode -eq 0) { Add-Result "fnox:config" "pass" "configuration contract resolves without secret retrieval" }
+  elseif ($AllowMissing) { Add-Result "fnox:config" "warn" "configuration contract not yet resolvable (exit $fnoxConfigCode)" }
+  else { Add-Result "fnox:config" "fail" "configuration contract does not resolve (exit $fnoxConfigCode)" }
 } elseif ($AllowMissing) {
   Add-Result "mise" "warn" "unavailable"
 } else {
