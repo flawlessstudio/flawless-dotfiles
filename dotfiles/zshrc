@@ -1,7 +1,6 @@
-# Flawless zsh configuration
-# Managed by flawless-dotfiles. Keep credentials and machine-local overrides out.
+# Flawless zsh fragment
+# Injected as a marker-delimited block. Keep credentials and machine-local state out.
 
-# mise is the canonical tool/runtime environment when available.
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 fi
@@ -14,12 +13,17 @@ if [[ -d "$HOME/.oh-my-zsh" ]]; then
   source "$ZSH/oh-my-zsh.sh"
 fi
 
-command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+if command -v starship >/dev/null 2>&1; then
+  export STARSHIP_CONFIG="$HOME/.config/flawless/starship.toml"
+  eval "$(starship init zsh)"
+fi
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 
-alias ls='eza --icons --group-directories-first'
-alias ll='eza -la --icons --group-directories-first --git'
-alias lt='eza --tree --icons --level=2'
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza -la --icons --group-directories-first --git'
+  alias lt='eza --tree --icons --level=2'
+fi
 alias g='git'
 alias gs='git status -sb'
 alias gd='git diff'
@@ -41,7 +45,15 @@ SAVEHIST=50000
 HISTFILE="$HOME/.zsh_history"
 setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY EXTENDED_HISTORY
 
-export EDITOR="${EDITOR:-nvim}"
+if [[ -z "${EDITOR:-}" ]]; then
+  if command -v nvim >/dev/null 2>&1; then
+    export EDITOR=nvim
+  elif command -v vim >/dev/null 2>&1; then
+    export EDITOR=vim
+  else
+    export EDITOR=vi
+  fi
+fi
 export VISUAL="${VISUAL:-$EDITOR}"
 
 # Machine-local, non-versioned extension point.
