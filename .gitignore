@@ -6,6 +6,11 @@ mise.*.local.toml
 mise.local.lock
 mise.*.local.lock
 
+# Local fnox/provider bindings
+fnox.local.toml
+.fnox.local.toml
+fnox.*.local.toml
+
 # Private/local composition manifests
 manifests/*.local.json
 manifests/*-private.json
