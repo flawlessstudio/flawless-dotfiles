@@ -1,6 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "flawless-reproducible-agent-environment",
+  "baseline": "final-production",
   "repository_role": "machine-user-environment-composition-root",
   "exposure": "public-non-secret",
   "state_classes": [
@@ -10,28 +11,39 @@
     "secret-reference",
     "runtime"
   ],
-  "managed_capabilities": [
+  "managed_domains": [
     "toolchain",
-    "dotfiles",
+    "safe-dotfiles",
     "platform-profiles",
+    "capability-profiles",
     "bootstrap",
-    "diagnostics"
+    "projection",
+    "external-source-materialization",
+    "diagnostics",
+    "validation",
+    "rollback",
+    "provenance"
   ],
   "external_domain_sources": [
     {
       "id": "agent-definitions",
       "ownership": "external-domain-ssot",
-      "integration": "reference-or-projection"
+      "integration": "reference-or-selective-projection"
     },
     {
       "id": "agent-skills",
       "ownership": "external-domain-ssot",
-      "integration": "reference-or-projection"
+      "integration": "reference-or-selective-projection"
     },
     {
       "id": "mcp-assets",
       "ownership": "external-domain-ssot",
-      "integration": "reference-or-projection"
+      "integration": "reference-or-selective-projection"
+    },
+    {
+      "id": "production-prompts",
+      "ownership": "external-domain-ssot",
+      "integration": "reference-or-selective-projection"
     },
     {
       "id": "ai-governance-protocols",
@@ -39,39 +51,50 @@
       "integration": "reference-only"
     }
   ],
-  "target_profiles": [
-    "common",
+  "platform_targets": [
     "linux",
     "macos",
     "windows",
-    "remote-vps"
+    "wsl",
+    "remote-vps",
+    "ios-control-client"
   ],
+  "profile_registry": "manifests/profiles.json",
+  "capability_registry": "manifests/capabilities.json",
+  "harness_contract_registry": "manifests/harnesses.json",
   "control_surfaces": [
     "desktop-terminal",
+    "desktop-app",
+    "provider-native-web-or-mobile",
     "remote-ssh",
-    "mobile-ssh-client"
-  ],
-  "target_harnesses": [
-    "codex",
-    "claude-code",
-    "hermes-agent"
+    "secure-overlay-network",
+    "mobile-ssh-client",
+    "github-control-plane"
   ],
   "security_invariants": [
     "no-plaintext-secrets-in-git",
     "no-runtime-session-state-in-git",
     "preserve-unmanaged-neighbors",
     "least-privilege",
-    "explicit-apply",
-    "reversible-owned-state"
+    "explicit-mutation",
+    "reversible-owned-state",
+    "exact-source-pins-for-composed-ssots",
+    "no-silent-destructive-fallback",
+    "private-topology-remains-private"
   ],
-  "mvp": {
-    "locked": true,
-    "features": [
-      "declarative-desired-state",
-      "selective-dotfile-projection",
-      "external-secret-references",
-      "agent-environment-adapter-contract",
-      "bootstrap-apply-doctor"
+  "closure": {
+    "strategy": "material-saturation-and-applicable-gates",
+    "mvp_or_80_20_stop": false,
+    "required_conditions": [
+      "all-applicable-platform-static-gates-pass",
+      "all-managed-platform-convergence-gates-pass",
+      "second-apply-is-idempotent",
+      "rollback-preserves-unmanaged-state",
+      "source-composition-is-exact-and-reversible",
+      "secret-and-runtime-boundaries-validated",
+      "profile-and-capability-registries-consistent",
+      "material-gaps-zero-or-explicitly-externalized",
+      "fresh-host-recovery-path-documented-and-testable"
     ]
   }
 }
