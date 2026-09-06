@@ -1,0 +1,29 @@
+name: Validate reproducible environment
+
+on:
+  push:
+    branches:
+      - main
+      - feat/reproducible-agent-environment-v0.1
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unix-static:
+    name: Unix static and safety gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate
+        run: bash scripts/validate.sh
+
+  windows-static:
+    name: Windows static and safety gates
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate.ps1
