@@ -13,10 +13,18 @@ pass() { printf 'PASS  %s\n' "$*"; PASS=$((PASS+1)); }
 warn() { printf 'WARN  %s\n' "$*"; WARN=$((WARN+1)); }
 fail() { printf 'FAIL  %s\n' "$*"; FAIL=$((FAIL+1)); }
 
+mise_has_command() {
+  local cmd="$1"
+  command -v mise >/dev/null 2>&1 || return 1
+  mise which "$cmd" >/dev/null 2>&1
+}
+
 check_required() {
   local cmd="$1"
   if command -v "$cmd" >/dev/null 2>&1; then
     pass "command:$cmd"
+  elif mise_has_command "$cmd"; then
+    pass "managed:$cmd available through mise (shell activation pending/current-shell not activated)"
   elif [[ "$ALLOW_MISSING" -eq 1 ]]; then
     warn "command:$cmd missing"
   else
@@ -28,6 +36,8 @@ check_optional() {
   local cmd="$1"
   if command -v "$cmd" >/dev/null 2>&1; then
     pass "optional:$cmd available"
+  elif mise_has_command "$cmd"; then
+    pass "optional:$cmd available through mise"
   else
     warn "optional:$cmd not installed"
   fi
