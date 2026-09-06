@@ -1,0 +1,464 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unix-static:
+    name: Unix static and safety gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate
+        run: bash scripts/validate.sh
+
+  windows-static:
+    name: Windows static and safety gates
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate.ps1
+
+  lockfile-consistency:
+    name: mise lockfile consistency
+    needs:
+      - unix-static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Resolve lockfile without accepting drift
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-lock-home"
+          mkdir -p "$HOME"
+          bash scripts/ensure-mise.sh --apply
+          export PATH="$HOME/.local/bin:$PATH"
+          export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
+          mise lock --platform linux-x64,windows-x64,macos-x64,macos-arm64
+          git diff --exit-code -- mise.lock
+
+  source-composition:
+    name: Pinned source sync, drift refusal and rollback
+    needs:
+      - unix-static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Create public fixture manifest
+        run: |
+          cat > "$RUNNER_TEMP/sources-test.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "sources": [
+              {
+                "id": "dotfiles-fixture",
+                "repository": "flawlessstudio/flawless-dotfiles",
+                "clone_url": "https://github.com/flawlessstudio/flawless-dotfiles.git",
+                "branch": "main",
+                "commit": "12ef2107a598520f47e13b1a4c283b851978ad9b",
+                "destination": "dotfiles-fixture",
+                "role": "public CI fixture",
+                "lifecycle": "reference",
+                "private": false,
+                "required": true,
+                "authority": "internal",
+                "trust_tier": "T0",
+                "license": null,
+                "update_policy": "frozen",
+                "last_verified": "2026-09-06"
+              }
+            ]
+          }
+          JSON
+
+      - name: Reject manifests with embedded credentials
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          p = root / "sources-test.json"
+          d = json.loads(p.read_text())
+          d["sources"][0]["clone_url"] = "https://user:secret@github.com/example/repo.git"
+          (root / "sources-bad-credentials.json").write_text(json.dumps(d))
+          PY
+          if python scripts/sync-sources.py --plan --manifest "$RUNNER_TEMP/sources-bad-credentials.json" --base "$RUNNER_TEMP/bad"; then
+            echo "embedded credentials were unexpectedly accepted" >&2
+            exit 1
+          fi
+
+      - name: Reject unknown fields and unsafe destinations
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ["RUNNER_TEMP"])
+          base = json.loads((root / "sources-test.json").read_text())
+          d1 = json.loads(json.dumps(base))
+          d1["sources"][0]["mystery"] = "unexpected"
+          (root / "sources-bad-field.json").write_text(json.dumps(d1))
+          d2 = json.loads(json.dumps(base))
+          d2["sources"][0]["destination"] = "../escape"
+          (root / "sources-bad-destination.json").write_text(json.dumps(d2))
+          PY
+          ! python scripts/sync-sources.py --plan --manifest "$RUNNER_TEMP/sources-bad-field.json" --base "$RUNNER_TEMP/bad"
+          ! python scripts/sync-sources.py --plan --manifest "$RUNNER_TEMP/sources-bad-destination.json" --base "$RUNNER_TEMP/bad"
+
+      - name: Plan is read-only
+        run: |
+          python scripts/sync-sources.py \
+            --plan \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          ! test -e "$RUNNER_TEMP/sources/dotfiles-fixture"
+
+      - name: Apply exact pin and verify status
+        run: |
+          python scripts/sync-sources.py \
+            --apply \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          python scripts/sync-sources.py \
+            --status \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          test "$(git -C "$RUNNER_TEMP/sources/dotfiles-fixture" rev-parse HEAD)" = "12ef2107a598520f47e13b1a4c283b851978ad9b"
+
+      - name: Reapply is idempotent
+        run: |
+          before="$(git -C "$RUNNER_TEMP/sources/dotfiles-fixture" rev-parse HEAD)"
+          python scripts/sync-sources.py \
+            --apply \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          after="$(git -C "$RUNNER_TEMP/sources/dotfiles-fixture" rev-parse HEAD)"
+          test "$before" = "$after"
+
+      - name: Dirty source blocks destructive rollback
+        run: |
+          touch "$RUNNER_TEMP/sources/dotfiles-fixture/local-unmanaged-file"
+          if python scripts/sync-sources.py \
+            --unapply --yes \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"; then
+            echo "unapply unexpectedly removed a dirty source" >&2
+            exit 1
+          fi
+          test -e "$RUNNER_TEMP/sources/dotfiles-fixture/local-unmanaged-file"
+          rm "$RUNNER_TEMP/sources/dotfiles-fixture/local-unmanaged-file"
+
+      - name: Clean exact-pin rollback is conservative
+        run: |
+          python scripts/sync-sources.py \
+            --unapply --yes \
+            --manifest "$RUNNER_TEMP/sources-test.json" \
+            --base "$RUNNER_TEMP/sources"
+          ! test -e "$RUNNER_TEMP/sources/dotfiles-fixture"
+
+  disposable-linux-convergence:
+    name: Disposable Linux convergence proof
+    needs:
+      - unix-static
+      - windows-static
+      - lockfile-consistency
+      - source-composition
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Seed unmanaged neighbor state
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          mkdir -p "$HOME/.config"
+          printf '# unmanaged git sentinel\n' > "$HOME/.gitconfig"
+          printf '# unmanaged zsh sentinel\n' > "$HOME/.zshrc"
+          printf '# unmanaged tmux sentinel\n' > "$HOME/.tmux.conf"
+
+      - name: Bootstrap mise in isolated HOME
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          bash scripts/ensure-mise.sh --apply
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Converge configured Linux toolchain
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          bash scripts/install-tools.sh --apply
+
+      - name: Apply Unix configuration and run doctor
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
+          mise bootstrap dotfiles apply --yes
+          bash scripts/doctor.sh
+          grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
+          grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
+          grep -F '# unmanaged tmux sentinel' "$HOME/.tmux.conf"
+          sha256sum \
+            "$HOME/.gitconfig" \
+            "$HOME/.zshrc" \
+            "$HOME/.tmux.conf" \
+            "$HOME/.config/flawless/gitconfig" \
+            "$HOME/.config/flawless/tmux.conf" \
+            "$HOME/.config/flawless/starship.toml" \
+            > "$RUNNER_TEMP/first.sha256"
+
+      - name: Full Unix bootstrap is idempotent
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          bash scripts/bootstrap.sh --apply
+          sha256sum \
+            "$HOME/.gitconfig" \
+            "$HOME/.zshrc" \
+            "$HOME/.tmux.conf" \
+            "$HOME/.config/flawless/gitconfig" \
+            "$HOME/.config/flawless/tmux.conf" \
+            "$HOME/.config/flawless/starship.toml" \
+            > "$RUNNER_TEMP/second.sha256"
+          diff -u "$RUNNER_TEMP/first.sha256" "$RUNNER_TEMP/second.sha256"
+
+      - name: Unapply preserves unmanaged neighbors
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
+          mise bootstrap dotfiles unapply --yes
+          grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
+          grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
+          grep -F '# unmanaged tmux sentinel' "$HOME/.tmux.conf"
+          ! test -e "$HOME/.config/flawless/gitconfig"
+          ! test -e "$HOME/.config/flawless/tmux.conf"
+          ! test -e "$HOME/.config/flawless/starship.toml"
+
+  disposable-windows-convergence:
+    name: Disposable Windows convergence proof
+    needs:
+      - unix-static
+      - windows-static
+      - lockfile-consistency
+      - source-composition
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Seed isolated Windows home and unmanaged state
+        shell: powershell
+        run: |
+          $testHome = Join-Path $env:RUNNER_TEMP 'flawless-home-win'
+          New-Item -ItemType Directory -Force -Path $testHome | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $testHome 'Documents\PowerShell') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $testHome 'Documents\WindowsPowerShell') | Out-Null
+          Set-Content -Path (Join-Path $testHome '.gitconfig') -Value '# unmanaged git sentinel'
+          Set-Content -Path (Join-Path $testHome 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1') -Value '# unmanaged pwsh sentinel'
+          Set-Content -Path (Join-Path $testHome 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1') -Value '# unmanaged powershell sentinel'
+          "FLAWLESS_TEST_HOME=$testHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Bootstrap mise on Windows
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-mise.ps1 -Apply
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $candidates = @(
+            (Get-Command mise -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\mise.exe'),
+            (Join-Path $env:USERPROFILE 'scoop\shims\mise.exe')
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          $miseExe = $candidates | Select-Object -First 1
+          if (-not $miseExe) { throw 'mise installed but executable path could not be persisted for the next CI step.' }
+          Split-Path -Parent $miseExe | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Converge configured Windows toolchain
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-tools.ps1 -Apply
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Apply native Windows configuration projection
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Apply
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Status
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run Windows doctor and capture baseline hashes
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
+          Select-String -SimpleMatch '# unmanaged pwsh sentinel' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
+          Select-String -SimpleMatch '# unmanaged powershell sentinel' (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
+          $paths = @(
+            (Join-Path $env:HOME '.gitconfig'),
+            (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1'),
+            (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1'),
+            (Join-Path $env:HOME '.config\flawless\gitconfig'),
+            (Join-Path $env:HOME '.config\flawless\starship.toml')
+          )
+          $paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash + '  ' + $_ } | Set-Content -Path (Join-Path $env:RUNNER_TEMP 'windows-first.sha256')
+
+      - name: Full Windows bootstrap is idempotent
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 -Apply
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $paths = @(
+            (Join-Path $env:HOME '.gitconfig'),
+            (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1'),
+            (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1'),
+            (Join-Path $env:HOME '.config\flawless\gitconfig'),
+            (Join-Path $env:HOME '.config\flawless\starship.toml')
+          )
+          $second = Join-Path $env:RUNNER_TEMP 'windows-second.sha256'
+          $paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash + '  ' + $_ } | Set-Content -Path $second
+          $first = Get-Content (Join-Path $env:RUNNER_TEMP 'windows-first.sha256')
+          $after = Get-Content $second
+          if (Compare-Object $first $after) { throw 'Second convergence produced filesystem drift.' }
+
+      - name: Unapply preserves unmanaged Windows neighbors
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Unapply
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
+          Select-String -SimpleMatch '# unmanaged pwsh sentinel' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
+          Select-String -SimpleMatch '# unmanaged powershell sentinel' (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
+          if (Select-String -Quiet -SimpleMatch '# >>> flawless:' (Join-Path $env:HOME '.gitconfig')) { throw 'Flawless git marker survived unapply.' }
+          if (Select-String -Quiet -SimpleMatch '# >>> flawless:' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1')) { throw 'Flawless pwsh marker survived unapply.' }
+          if (Select-String -Quiet -SimpleMatch '# >>> flawless:' (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1')) { throw 'Flawless WindowsPowerShell marker survived unapply.' }
+          if (Test-Path (Join-Path $env:HOME '.config\flawless\gitconfig')) { throw 'Managed gitconfig copy survived unapply.' }
+          if (Test-Path (Join-Path $env:HOME '.config\flawless\starship.toml')) { throw 'Managed starship copy survived unapply.' }
+
+  macos-convergence:
+    name: macOS convergence (${{ matrix.runner }})
+    needs:
+      - unix-static
+      - windows-static
+      - lockfile-consistency
+      - source-composition
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-latest
+          - macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Seed isolated HOME and unmanaged neighbors
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          mkdir -p "$HOME/.config"
+          printf '# unmanaged git sentinel\n' > "$HOME/.gitconfig"
+          printf '# unmanaged zsh sentinel\n' > "$HOME/.zshrc"
+          printf '# unmanaged tmux sentinel\n' > "$HOME/.tmux.conf"
+
+      - name: Bootstrap mise
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          bash scripts/ensure-mise.sh --apply
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Converge locked toolchain
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          bash scripts/install-tools.sh --apply
+
+      - name: Apply managed configuration and doctor
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
+          mise bootstrap dotfiles apply --yes
+          bash scripts/doctor.sh
+          grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
+          grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
+          grep -F '# unmanaged tmux sentinel' "$HOME/.tmux.conf"
+          shasum -a 256 \
+            "$HOME/.gitconfig" \
+            "$HOME/.zshrc" \
+            "$HOME/.tmux.conf" \
+            "$HOME/.config/flawless/gitconfig" \
+            "$HOME/.config/flawless/tmux.conf" \
+            "$HOME/.config/flawless/starship.toml" \
+            > "$RUNNER_TEMP/first.sha256"
+
+      - name: Second bootstrap is idempotent
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          bash scripts/bootstrap.sh --apply
+          shasum -a 256 \
+            "$HOME/.gitconfig" \
+            "$HOME/.zshrc" \
+            "$HOME/.tmux.conf" \
+            "$HOME/.config/flawless/gitconfig" \
+            "$HOME/.config/flawless/tmux.conf" \
+            "$HOME/.config/flawless/starship.toml" \
+            > "$RUNNER_TEMP/second.sha256"
+          diff -u "$RUNNER_TEMP/first.sha256" "$RUNNER_TEMP/second.sha256"
+
+      - name: Unapply preserves unmanaged neighbors
+        run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
+          export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
+          mise bootstrap dotfiles unapply --yes
+          grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
+          grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
+          grep -F '# unmanaged tmux sentinel' "$HOME/.tmux.conf"
+          ! test -e "$HOME/.config/flawless/gitconfig"
+          ! test -e "$HOME/.config/flawless/tmux.conf"
+          ! test -e "$HOME/.config/flawless/starship.toml"
+
+  required:
+    name: CI / required
+    if: ${{ always() }}
+    needs:
+      - unix-static
+      - windows-static
+      - lockfile-consistency
+      - source-composition
+      - disposable-linux-convergence
+      - disposable-windows-convergence
+      - macos-convergence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every CI gate
+        env:
+          UNIX_STATIC: ${{ needs.unix-static.result }}
+          WINDOWS_STATIC: ${{ needs.windows-static.result }}
+          LOCKFILE: ${{ needs.lockfile-consistency.result }}
+          SOURCES: ${{ needs.source-composition.result }}
+          LINUX: ${{ needs.disposable-linux-convergence.result }}
+          WINDOWS: ${{ needs.disposable-windows-convergence.result }}
+          MACOS: ${{ needs.macos-convergence.result }}
+        run: |
+          printf '%-24s %s\n' \
+            unix-static "$UNIX_STATIC" \
+            windows-static "$WINDOWS_STATIC" \
+            lockfile-consistency "$LOCKFILE" \
+            source-composition "$SOURCES" \
+            linux-convergence "$LINUX" \
+            windows-convergence "$WINDOWS" \
+            macos-convergence "$MACOS"
+          test "$UNIX_STATIC" = success
+          test "$WINDOWS_STATIC" = success
+          test "$LOCKFILE" = success
+          test "$SOURCES" = success
+          test "$LINUX" = success
+          test "$WINDOWS" = success
+          test "$MACOS" = success

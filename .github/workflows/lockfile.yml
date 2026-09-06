@@ -1,14 +1,6 @@
 name: Generate mise lockfile
 
 on:
-  push:
-    branches:
-      - feat/reproducible-agent-environment-v0.1
-    paths:
-      - mise.toml
-      - mise.*.toml
-      - .miserc.toml
-      - .github/workflows/lockfile.yml
   workflow_dispatch:
 
 permissions:
@@ -19,24 +11,20 @@ jobs:
     name: Resolve cross-platform tool lockfile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Install mise
-        run: |
-          curl -fsSL https://mise.run | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Resolve lockfile
         run: |
+          export HOME="$RUNNER_TEMP/flawless-lock-home"
+          mkdir -p "$HOME"
+          bash scripts/ensure-mise.sh --apply
           export PATH="$HOME/.local/bin:$PATH"
           export MISE_TRUSTED_CONFIG_PATHS="$GITHUB_WORKSPACE"
           mise lock --platform linux-x64,windows-x64,macos-x64,macos-arm64
           test -s mise.lock
-          mise lock --platform linux-x64,windows-x64,macos-x64,macos-arm64
-          git diff -- mise.lock || true
 
       - name: Upload resolved lockfile
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mise-lock
           path: mise.lock
