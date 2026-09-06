@@ -112,14 +112,30 @@ jobs:
           Set-Content -Path (Join-Path $testHome 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1') -Value '# unmanaged powershell sentinel'
           "FLAWLESS_TEST_HOME=$testHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: First convergence and doctor
+      - name: Converge pinned Windows toolchain
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
           $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 -Apply
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-tools.ps1 -Apply
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Apply native Windows configuration projection
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Apply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Status
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run Windows doctor and capture baseline hashes
+        shell: powershell
+        run: |
+          $env:HOME = $env:FLAWLESS_TEST_HOME
+          $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
           Select-String -SimpleMatch '# unmanaged pwsh sentinel' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
@@ -131,17 +147,14 @@ jobs:
             (Join-Path $env:HOME '.config\flawless\gitconfig'),
             (Join-Path $env:HOME '.config\flawless\starship.toml')
           )
-          $hashes = $paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash + '  ' + $_ }
-          $hashes | Set-Content -Path (Join-Path $env:RUNNER_TEMP 'windows-first.sha256')
+          $paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash + '  ' + $_ } | Set-Content -Path (Join-Path $env:RUNNER_TEMP 'windows-first.sha256')
 
-      - name: Second convergence is idempotent
+      - name: Full Windows bootstrap is idempotent
         shell: powershell
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
           $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 -Apply
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Status
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $paths = @(
             (Join-Path $env:HOME '.gitconfig'),
@@ -150,9 +163,8 @@ jobs:
             (Join-Path $env:HOME '.config\flawless\gitconfig'),
             (Join-Path $env:HOME '.config\flawless\starship.toml')
           )
-          $hashes = $paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash + '  ' + $_ }
           $second = Join-Path $env:RUNNER_TEMP 'windows-second.sha256'
-          $hashes | Set-Content -Path $second
+          $paths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash + '  ' + $_ } | Set-Content -Path $second
           $first = Get-Content (Join-Path $env:RUNNER_TEMP 'windows-first.sha256')
           $after = Get-Content $second
           if (Compare-Object $first $after) { throw 'Second convergence produced filesystem drift.' }
