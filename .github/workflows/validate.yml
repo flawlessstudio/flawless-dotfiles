@@ -31,13 +31,12 @@ jobs:
   disposable-linux-convergence:
     name: Disposable Linux convergence proof
     runs-on: ubuntu-latest
-    env:
-      HOME: ${{ runner.temp }}/flawless-home
     steps:
       - uses: actions/checkout@v5
 
       - name: Seed unmanaged neighbor state
         run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
           mkdir -p "$HOME/.config"
           printf '# unmanaged git sentinel\n' > "$HOME/.gitconfig"
           printf '# unmanaged zsh sentinel\n' > "$HOME/.zshrc"
@@ -45,12 +44,14 @@ jobs:
 
       - name: Bootstrap mise in isolated HOME
         run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
           curl -fsSL https://mise.run | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           "$HOME/.local/bin/mise" --version
 
       - name: First convergence and doctor
         run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
           mise trust --all
           mise bootstrap --yes
           mise exec -- bash scripts/doctor.sh
@@ -69,6 +70,7 @@ jobs:
 
       - name: Second convergence is idempotent
         run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
           mise bootstrap --yes
           mise bootstrap status --missing
           sha256sum \
@@ -83,6 +85,7 @@ jobs:
 
       - name: Unapply preserves unmanaged neighbors
         run: |
+          export HOME="$RUNNER_TEMP/flawless-home"
           mise bootstrap dotfiles unapply --yes
           grep -F '# unmanaged git sentinel' "$HOME/.gitconfig"
           grep -F '# unmanaged zsh sentinel' "$HOME/.zshrc"
