@@ -4,24 +4,20 @@ Set-Location $Root
 $env:MISE_TRUSTED_CONFIG_PATHS = $Root
 
 Write-Host "== PowerShell syntax validation =="
-@(
-  "scripts/bootstrap.ps1",
-  "scripts/doctor.ps1",
-  "scripts/project-windows.ps1",
-  "scripts/validate.ps1"
-) | ForEach-Object {
-  $file = $_
+Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+  $file = $_.FullName
+  $relative = "scripts/$($_.Name)"
   $tokens = $null
   $errors = $null
-  [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root $file), [ref]$tokens, [ref]$errors) | Out-Null
-  if ($errors.Count -gt 0) { throw ("PowerShell parse failure in {0}: {1}" -f $file, $errors[0].Message) }
-  Write-Host "PASS  $file"
+  [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+  if ($errors.Count -gt 0) { throw ("PowerShell parse failure in {0}: {1}" -f $relative, $errors[0].Message) }
+  Write-Host "PASS  $relative"
 }
 
 Write-Host ""
 Write-Host "== manifest and Python validation =="
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-  Write-Error "python is required for canonical JSON/TOML/Python validation"
+  throw "python is required for final JSON/TOML/Python registry validation"
 }
 
 Get-ChildItem manifests -Filter *.json | ForEach-Object {
@@ -30,9 +26,12 @@ Get-ChildItem manifests -Filter *.json | ForEach-Object {
   Write-Host "PASS  manifests/$($_.Name)"
 }
 
-& python -m py_compile scripts/sync-sources.py
+& python -m py_compile scripts/sync-sources.py scripts/validate-registry.py
 if ($LASTEXITCODE -ne 0) { throw "Python compile validation failed" }
-Write-Host "PASS  scripts/sync-sources.py"
+Write-Host "PASS  Python scripts compile"
+
+& python scripts/validate-registry.py
+if ($LASTEXITCODE -ne 0) { throw "Final registry integrity validation failed" }
 
 $TomlCheck = @'
 import tomllib
@@ -67,12 +66,19 @@ Write-Host ""
 Write-Host "== mise validation =="
 $mise = Get-Command mise -ErrorAction SilentlyContinue
 if ($mise) {
-  & $mise.Source config *> $null
-  if ($LASTEXITCODE -ne 0) { throw "mise config failed" }
+  $previous = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    & $mise.Source config *> $null
+    $configCode = $LASTEXITCODE
+    & $mise.Source install --dry-run *> $null
+    $installCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previous
+  }
+  if ($configCode -ne 0) { throw "mise config failed" }
   Write-Host "PASS  mise config"
-
-  & $mise.Source install --dry-run *> $null
-  if ($LASTEXITCODE -ne 0) { throw "mise install --dry-run failed" }
+  if ($installCode -ne 0) { throw "mise install --dry-run failed" }
   Write-Host "PASS  mise install --dry-run"
 } else {
   Write-Warning "mise unavailable; runtime tool-plan validation skipped"
