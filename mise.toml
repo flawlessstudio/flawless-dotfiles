@@ -1,0 +1,27 @@
+# Canonical cross-platform desired state for the Flawless developer environment.
+# Platform-specific additions live in mise.unix.toml / mise.linux.toml /
+# mise.macos.toml / mise.windows.toml and are selected by .miserc.toml.
+
+redactions = ["*_API_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD", "HCLOUD_TOKEN"]
+
+[tools]
+node = "24"
+python = "3.13"
+uv = "latest"
+"npm:pnpm" = "11"
+
+[dotfiles]
+"~/.gitconfig" = { source = "dotfiles/gitconfig", mode = "copy" }
+"~/.config/starship.toml" = { source = "dotfiles/starship.toml", mode = "copy" }
+
+[tasks.plan]
+description = "Show the machine convergence plan without mutating the host"
+run = "mise bootstrap --dry-run"
+
+[tasks.doctor]
+description = "Run read-only Flawless environment diagnostics"
+run = "./scripts/doctor.sh"
+
+[tasks.validate]
+description = "Validate repository manifests and shell entrypoints"
+run = "./scripts/validate.sh"
