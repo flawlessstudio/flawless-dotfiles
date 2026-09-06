@@ -32,7 +32,8 @@ function Invoke-MiseQuiet([string[]]$Arguments) {
     & $script:MiseExe @Arguments *> $null
     return [int]$LASTEXITCODE
   } catch {
-    return if ($LASTEXITCODE -is [int]) { [int]$LASTEXITCODE } else { 2 }
+    if ($LASTEXITCODE -is [int]) { return [int]$LASTEXITCODE }
+    return 2
   } finally {
     $ErrorActionPreference = $previous
   }
