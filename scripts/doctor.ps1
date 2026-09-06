@@ -31,8 +31,16 @@ $MiseExe = Resolve-Mise
 
 function Test-MiseCommand([string]$Command) {
   if (-not $script:MiseExe) { return $false }
-  & $script:MiseExe which $Command *> $null
-  return ($LASTEXITCODE -eq 0)
+  $previous = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    & $script:MiseExe which $Command *> $null
+    return ($LASTEXITCODE -eq 0)
+  } catch {
+    return $false
+  } finally {
+    $ErrorActionPreference = $previous
+  }
 }
 
 function Check-Required([string]$Command) {
