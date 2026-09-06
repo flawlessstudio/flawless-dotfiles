@@ -1,7 +1,10 @@
 # Canonical cross-platform desired state for the Flawless developer environment.
 # Platform-specific projection is layered through mise.unix.toml and
 # mise.windows.toml. Native Windows intentionally does not use mise dotfiles,
-# because mise's managed home/system file bootstrap is Unix-only.
+# because its projection requires Windows-specific preservation semantics.
+
+[settings]
+lockfile = true
 
 redactions = ["*_API_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD", "HCLOUD_TOKEN"]
 
