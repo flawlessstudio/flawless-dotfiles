@@ -48,7 +48,7 @@ if [[ "$MODE" == "plan" ]]; then
   echo "== Flawless environment plan =="
   mise bootstrap --dry-run
   echo
-  "$ROOT/scripts/doctor.sh" --allow-missing
+  bash "$ROOT/scripts/doctor.sh" --allow-missing
   exit 0
 fi
 
@@ -60,4 +60,4 @@ echo "== Applying Flawless desired state =="
 mise bootstrap --yes
 
 echo
-"$ROOT/scripts/doctor.sh"
+bash "$ROOT/scripts/doctor.sh"
