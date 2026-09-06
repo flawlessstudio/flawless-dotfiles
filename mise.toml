@@ -4,12 +4,11 @@
 # because its projection requires Windows-specific preservation semantics.
 
 [settings]
+# Read and require the committed lockfile for deterministic tool resolution.
+# `locked` lives in [settings] for compatibility with mise versions currently
+# distributed through both the Unix bootstrap and Windows Package Manager.
 lockfile = true
-
-[tool_config]
 locked = true
-
-redactions = ["*_API_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD", "HCLOUD_TOKEN"]
 
 [tools]
 node = "24.20.0"
