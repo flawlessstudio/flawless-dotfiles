@@ -29,18 +29,26 @@ function Resolve-Mise {
 
 $MiseExe = Resolve-Mise
 
-function Test-MiseCommand([string]$Command) {
-  if (-not $script:MiseExe) { return $false }
+function Invoke-MiseQuiet([string[]]$Arguments) {
+  if (-not $script:MiseExe) { return 127 }
   $previous = $ErrorActionPreference
   try {
+    # Windows PowerShell 5 can promote native stderr/progress text to
+    # NativeCommandError even for a native exit code of 0. Machine-readable
+    # probes therefore use the process exit code as the source of truth.
     $ErrorActionPreference = "Continue"
-    & $script:MiseExe which $Command *> $null
-    return ($LASTEXITCODE -eq 0)
+    & $script:MiseExe @Arguments *> $null
+    return [int]$LASTEXITCODE
   } catch {
-    return $false
+    if ($LASTEXITCODE -is [int]) { return [int]$LASTEXITCODE }
+    return 2
   } finally {
     $ErrorActionPreference = $previous
   }
+}
+
+function Test-MiseCommand([string]$Command) {
+  return ((Invoke-MiseQuiet @("which", $Command)) -eq 0)
 }
 
 function Check-Required([string]$Command) {
@@ -95,13 +103,14 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 Write-Host ""
 Write-Host "-- declarative state --"
 if ($MiseExe) {
-  & $MiseExe config *> $null
-  if ($LASTEXITCODE -eq 0) { Pass "mise configuration resolves" } else { Fail "mise configuration does not resolve" }
+  $configCode = Invoke-MiseQuiet @("config")
+  if ($configCode -eq 0) { Pass "mise configuration resolves" } else { Fail "mise configuration does not resolve" }
 
-  & $MiseExe install --dry-run-code *> $null
-  if ($LASTEXITCODE -eq 0) { Pass "mise tool state converged" }
-  elseif ($AllowMissing) { Warn "mise reports missing configured tools" }
-  else { Fail "mise reports missing configured tools" }
+  $toolStateCode = Invoke-MiseQuiet @("install", "--dry-run-code")
+  if ($toolStateCode -eq 0) { Pass "mise tool state converged" }
+  elseif ($toolStateCode -eq 1 -and $AllowMissing) { Warn "mise reports missing configured tools" }
+  elseif ($toolStateCode -eq 1) { Fail "mise reports missing configured tools" }
+  else { Fail "mise tool-state probe failed with exit code $toolStateCode" }
 } else {
   if ($AllowMissing) { Warn "mise state checks skipped" } else { Fail "mise unavailable" }
 }
