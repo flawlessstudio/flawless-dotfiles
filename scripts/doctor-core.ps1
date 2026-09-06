@@ -29,10 +29,25 @@ function Resolve-Mise {
 
 $MiseExe = Resolve-Mise
 
+function Invoke-MiseQuiet([string[]]$Arguments) {
+  if (-not $script:MiseExe) { return 127 }
+  $previous = $ErrorActionPreference
+  try {
+    # Windows PowerShell 5 may surface native stderr/progress as a terminating
+    # NativeCommandError. The native exit code is authoritative for probes.
+    $ErrorActionPreference = "Continue"
+    & $script:MiseExe @Arguments *> $null
+    return [int]$LASTEXITCODE
+  } catch {
+    if ($LASTEXITCODE -is [int]) { return [int]$LASTEXITCODE }
+    return 2
+  } finally {
+    $ErrorActionPreference = $previous
+  }
+}
+
 function Test-MiseCommand([string]$Command) {
-  if (-not $script:MiseExe) { return $false }
-  & $script:MiseExe which $Command *> $null
-  return ($LASTEXITCODE -eq 0)
+  return ((Invoke-MiseQuiet @("which", $Command)) -eq 0)
 }
 
 function Check-Required([string]$Command) {
@@ -88,24 +103,34 @@ foreach ($file in @(
 }
 
 if ($MiseExe) {
-  & $MiseExe config *> $null
-  if ($LASTEXITCODE -eq 0) { Add-Result "mise:config" "pass" "configuration resolves" }
-  else { Add-Result "mise:config" "fail" "configuration resolution failed with exit $LASTEXITCODE" }
+  $configCode = Invoke-MiseQuiet @("config")
+  if ($configCode -eq 0) { Add-Result "mise:config" "pass" "configuration resolves" }
+  else { Add-Result "mise:config" "fail" "configuration resolution failed with exit $configCode" }
 
-  & $MiseExe install --dry-run-code *> $null
-  if ($LASTEXITCODE -eq 0) { Add-Result "mise:tools" "pass" "configured tool state converged" }
-  elseif ($AllowMissing) { Add-Result "mise:tools" "warn" "configured tool state incomplete (exit $LASTEXITCODE)" }
-  else { Add-Result "mise:tools" "fail" "configured tool state incomplete (exit $LASTEXITCODE)" }
+  $toolStateCode = Invoke-MiseQuiet @("install", "--dry-run-code")
+  if ($toolStateCode -eq 0) { Add-Result "mise:tools" "pass" "configured tool state converged" }
+  elseif ($toolStateCode -eq 1 -and $AllowMissing) { Add-Result "mise:tools" "warn" "configured tool state incomplete" }
+  elseif ($toolStateCode -eq 1) { Add-Result "mise:tools" "fail" "configured tool state incomplete" }
+  else { Add-Result "mise:tools" "fail" "tool-state probe failed with exit $toolStateCode" }
 } elseif ($AllowMissing) {
   Add-Result "mise" "warn" "unavailable"
 } else {
   Add-Result "mise" "fail" "unavailable"
 }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File "$Root/scripts/project-windows.ps1" -Status *> $null
-if ($LASTEXITCODE -eq 0) { Add-Result "projection:windows" "pass" "converged" }
-elseif ($AllowMissing) { Add-Result "projection:windows" "warn" "not fully applied" }
-else { Add-Result "projection:windows" "fail" "not fully applied" }
+$previous = $ErrorActionPreference
+try {
+  $ErrorActionPreference = "Continue"
+  & powershell -NoProfile -ExecutionPolicy Bypass -File "$Root/scripts/project-windows.ps1" -Status *> $null
+  $projectionCode = [int]$LASTEXITCODE
+} catch {
+  if ($LASTEXITCODE -is [int]) { $projectionCode = [int]$LASTEXITCODE } else { $projectionCode = 2 }
+} finally {
+  $ErrorActionPreference = $previous
+}
+if ($projectionCode -eq 0) { Add-Result "projection:windows" "pass" "converged" }
+elseif ($AllowMissing) { Add-Result "projection:windows" "warn" "not fully applied (exit $projectionCode)" }
+else { Add-Result "projection:windows" "fail" "not fully applied (exit $projectionCode)" }
 
 $Summary = [pscustomobject]@{
   schema_version = 1
