@@ -118,7 +118,8 @@ jobs:
           $env:HOME = $env:FLAWLESS_TEST_HOME
           $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 -Apply
-          & mise bootstrap status --missing
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Status
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
           Select-String -SimpleMatch '# unmanaged pwsh sentinel' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
@@ -138,9 +139,9 @@ jobs:
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
           $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
-          & mise bootstrap --yes
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 -Apply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & mise bootstrap status --missing
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Status
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $paths = @(
             (Join-Path $env:HOME '.gitconfig'),
@@ -161,10 +162,13 @@ jobs:
         run: |
           $env:HOME = $env:FLAWLESS_TEST_HOME
           $env:USERPROFILE = $env:FLAWLESS_TEST_HOME
-          & mise bootstrap dotfiles unapply --yes
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/project-windows.ps1 -Unapply
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Select-String -SimpleMatch '# unmanaged git sentinel' (Join-Path $env:HOME '.gitconfig') | Out-Null
           Select-String -SimpleMatch '# unmanaged pwsh sentinel' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
           Select-String -SimpleMatch '# unmanaged powershell sentinel' (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1') | Out-Null
+          if (Select-String -Quiet -SimpleMatch '# >>> flawless:' (Join-Path $env:HOME '.gitconfig')) { throw 'Flawless git marker survived unapply.' }
+          if (Select-String -Quiet -SimpleMatch '# >>> flawless:' (Join-Path $env:HOME 'Documents\PowerShell\Microsoft.PowerShell_profile.ps1')) { throw 'Flawless pwsh marker survived unapply.' }
+          if (Select-String -Quiet -SimpleMatch '# >>> flawless:' (Join-Path $env:HOME 'Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1')) { throw 'Flawless WindowsPowerShell marker survived unapply.' }
           if (Test-Path (Join-Path $env:HOME '.config\flawless\gitconfig')) { throw 'Managed gitconfig copy survived unapply.' }
           if (Test-Path (Join-Path $env:HOME '.config\flawless\starship.toml')) { throw 'Managed starship copy survived unapply.' }
