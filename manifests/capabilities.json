@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reference_date": "2026-09-06",
+  "reference_date": "2026-09-11",
   "capabilities": [
     {
       "id": "codex",
@@ -8,16 +8,16 @@
       "authority": "OpenAI",
       "upstream": "openai/codex",
       "binary": "codex",
-      "version": "0.153.4",
+      "version": "0.154.0",
       "version_policy": "exact",
-      "install_policy": "npm-exact",
-      "package": "@openai/codex",
+      "install_policy": "vendor-standalone-versioned-installer",
+      "package": null,
       "platforms": ["linux", "macos", "windows", "wsl"],
       "managed_surfaces": ["instructions", "selected-config"],
       "unmanaged_surfaces": ["credentials", "sessions", "runtime-state", "provider-cache"],
-      "profiles": ["workstation-primary", "remote-vps", "agentic-full"],
+      "profiles": ["workstation-primary", "remote-vps", "codespaces-codex", "agentic-full"],
       "lifecycle": "active",
-      "reproducibility": "exact"
+      "reproducibility": "exact-vendor-release"
     },
     {
       "id": "claude-code",
@@ -101,7 +101,7 @@
       "platforms": ["linux", "macos", "windows", "wsl"],
       "managed_surfaces": [],
       "unmanaged_surfaces": ["authentication", "oauth-tokens", "credential-store"],
-      "profiles": ["base", "workstation-primary", "remote-vps", "agentic-full", "autonomous"],
+      "profiles": ["base", "workstation-primary", "remote-vps", "codespaces-codex", "agentic-full", "autonomous"],
       "lifecycle": "active",
       "reproducibility": "system-capability"
     },
