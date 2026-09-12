@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 echo "== static shell validation =="
-for script in scripts/*.sh; do
+for script in scripts/*.sh install.sh; do
   bash -n "$script"
   printf 'PASS  %s\n' "$script"
 done
@@ -28,6 +28,9 @@ for name in ("mise.toml", "mise.unix.toml", "mise.windows.toml", ".miserc.toml")
         tomllib.load(f)
     print(f"PASS  {name}")
 PY
+
+  bash scripts/install-codex.sh --plan
+  echo "PASS  Codex governed install plan"
 else
   echo "FAIL  python unavailable; final registry validation cannot be skipped" >&2
   exit 1

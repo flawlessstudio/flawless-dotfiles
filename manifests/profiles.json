@@ -18,6 +18,15 @@
       "required": false
     },
     {
+      "id": "codespaces-codex",
+      "purpose": "ephemeral, reproducible GitHub Codespaces execution host with Codex provisioned at the user/host layer while repository-specific instructions and configuration remain owned by the repository",
+      "inherits": ["base"],
+      "capabilities": ["codex"],
+      "platforms": ["linux"],
+      "required": false,
+      "external_requirements": ["github-codespaces", "github-dotfiles-enabled", "outbound-https"]
+    },
+    {
       "id": "remote-vps",
       "purpose": "persistent remote coding execution host with secure continuity",
       "inherits": ["base"],
