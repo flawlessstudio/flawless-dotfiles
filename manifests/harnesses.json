@@ -9,6 +9,7 @@
       "surfaces": {
         "user_config": "~/.codex/config.toml",
         "user_instructions": "$CODEX_HOME/AGENTS.md",
+        "project_config": ".codex/config.toml",
         "project_instructions": "AGENTS.md"
       },
       "adapter_policy": "merge-or-project-only; never replace the complete CODEX_HOME/runtime directory",
